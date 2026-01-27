@@ -299,7 +299,37 @@
 
     // simple animation: rapidly change icons then stop one by one
     const intervals = [];
+
+    // Determine final result ahead of time. If user has made a payment
+    // (flag stored in localStorage.stripePaid === '1'), guarantee at least a pair.
+    const paidFlag = (function(){ try{ return localStorage.getItem('stripePaid') === '1'; }catch(e){return false;} })();
     const final = [null,null,null];
+
+    if(paidFlag){
+      // Decide whether to give a jackpot (all three same) or only a pair.
+      const jackpotChance = 0.12; // ~12% chance of full jackpot
+      if(Math.random() < jackpotChance){
+        const pick = icons[rand(icons.length)];
+        final[0]=final[1]=final[2]=pick;
+      } else {
+        // Guarantee exactly one pair at minimum: pick base icon and indices
+        const base = icons[rand(icons.length)];
+        // choose which two positions will match
+        const pairPositions = [[0,1],[1,2],[0,2]][rand(3)];
+        final[pairPositions[0]] = base;
+        final[pairPositions[1]] = base;
+        // the remaining position should be different
+        const remainingIdx = [0,1,2].filter(x=>!pairPositions.includes(x))[0];
+        // pick a different icon
+        let other;
+        do { other = icons[rand(icons.length)]; } while(other === base && icons.length>1);
+        final[remainingIdx] = other;
+      }
+    } else {
+      // fully random finals
+      for(let i=0;i<3;i++) final[i] = icons[rand(icons.length)];
+    }
+
     for(let i=0;i<3;i++){
       intervals[i] = setInterval(()=>{
         reels[i].innerHTML = icons[rand(icons.length)];
@@ -311,9 +341,8 @@
     stops.forEach((t,i)=>{
       setTimeout(()=>{
         clearInterval(intervals[i]);
-        const pick = icons[rand(icons.length)];
-        reels[i].innerHTML = pick;
-        final[i]=pick;
+        // set the precomputed final HTML for this reel
+        reels[i].innerHTML = final[i];
         // when last stopped evaluate
         if(i===2){
           const result = evaluate(final);
@@ -384,4 +413,101 @@
       alert('Script error: ' + (err && err.message ? err.message : String(err)));
     }
   }
+})();
+
+/* --- Payment popup + confirmation handling ---
+   Flow:
+   - User clicks .promo-anchor -> we open the Stripe link in a popup window.
+   - If Stripe is configured to redirect to `success.html`, that page will set localStorage and postMessage back to opener.
+   - We listen for `message` events and also poll the popup window; when payment is detected we show a confirmation banner.
+   - If popup is simply closed, we show a friendly note asking the user to check their email (best-effort).
+*/
+(function(){
+  const promo = document.querySelector('.promo-anchor');
+  if(!promo) return;
+
+  function createToast(id, text){
+    let el = document.getElementById(id);
+    if(!el){
+      el = document.createElement('div');
+      el.id = id;
+      el.className = 'payment-toast';
+      document.body.appendChild(el);
+    }
+    el.textContent = text;
+    el.style.opacity = '1';
+    return el;
+  }
+
+  function hideToast(id){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.style.opacity = '0';
+    setTimeout(()=> el.remove(), 400);
+  }
+
+  function showConfirmation(){
+    // remove any waiting toast
+    hideToast('payment-wait');
+    // create persistent confirmation banner
+    let banner = document.getElementById('payment-confirmation');
+    if(!banner){
+      banner = document.createElement('div');
+      banner.id = 'payment-confirmation';
+      banner.innerHTML = `<div class="pc-inner"><strong>Payment confirmed — thank you!</strong><button id="pc-close" aria-label="Dismiss">OK</button></div>`;
+      document.body.appendChild(banner);
+      document.getElementById('pc-close').addEventListener('click', ()=> banner.remove());
+    }
+    // keep a small local flag so subsequent checks can see success
+    try{ localStorage.setItem('stripePaid','1'); }catch(e){}
+  }
+
+  function showMaybeClosed(){
+    hideToast('payment-wait');
+    createToast('payment-maybe','Popup closed — if your payment completed you should get a receipt by email.');
+    setTimeout(()=> hideToast('payment-maybe'), 6000);
+  }
+
+  // Listen for messages from the payment success page
+  window.addEventListener('message', (ev)=>{
+    try{
+      if(!ev.data) return;
+      if(ev.data && ev.data.type === 'stripe.success'){
+        showConfirmation();
+      }
+    }catch(e){/* ignore */}
+  }, false);
+
+  // Also watch localStorage changes (in case success page runs in another tab)
+  window.addEventListener('storage', (ev)=>{
+    if(ev.key === 'stripePaid' && ev.newValue === '1') showConfirmation();
+  });
+
+  promo.addEventListener('click', (e)=>{
+    // open in managed popup so we can detect close and optionally get postMessage
+    e.preventDefault();
+    const url = promo.href;
+    const popup = window.open(url, 'stripeCheckout', 'width=980,height=720');
+    if(!popup){
+      // popup blocked — fallback to normal navigation
+      window.location.href = url; return;
+    }
+    createToast('payment-wait','Waiting for payment to complete...');
+
+    const watcher = setInterval(()=>{
+      try{
+        // If popup closed, stop watching and show result note
+        if(!popup || popup.closed){
+          clearInterval(watcher);
+          // check localStorage for the success flag
+          const paid = localStorage.getItem('stripePaid');
+          if(paid === '1') showConfirmation();
+          else showMaybeClosed();
+        }
+      }catch(e){
+        clearInterval(watcher);
+        showMaybeClosed();
+      }
+    }, 600);
+  });
 })();

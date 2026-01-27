@@ -127,3 +127,41 @@ footer{margin-top:24px;text-align:center;color:var(--muted)}
   .controls{flex-direction:column;align-items:stretch}
   .lb-controls{flex-direction:column}
 }
+
+/* Promotional anchor positioned near the top-center and responsive */
+.promo-anchor{position:fixed;top:20px;right:18px;left:auto;transform:none;z-index:70;display:flex;flex-direction:column;align-items:center;gap:6px;text-decoration:none;opacity:0.95;transition:transform .14s ease,opacity .14s ease}
+.promo-anchor .promo-text{background:rgba(255,255,255,0.94);color:var(--accent);padding:6px 8px;border-radius:8px;font-weight:800;font-size:13px;box-shadow:0 8px 20px rgba(0,0,0,0.08);border:1px solid rgba(183,28,28,0.06)}
+.promo-anchor img{width:140px;height:auto;border-radius:10px;box-shadow:0 12px 34px rgba(0,0,0,0.16);border:1px solid rgba(255,255,255,0.6);display:block;opacity:0.98}
+.promo-anchor:hover{opacity:1;transform:translateY(-6px)}
+
+/* Slightly smaller on medium screens */
+@media (max-width:1200px){
+  .promo-anchor img{width:120px}
+  .promo-anchor .promo-text{font-size:12px;padding:5px 7px}
+}
+
+@media (max-width:920px){
+  .promo-anchor img{width:96px}
+  .promo-anchor .promo-text{font-size:11px;padding:4px 6px}
+}
+
+/* Mobile: fixed bottom center so it stays out of the header and is easy to reach */
+@media (max-width:480px){
+  .promo-anchor{top:auto;right:auto;left:50%;bottom:12px;transform:translateX(-50%);z-index:80}
+  .promo-anchor img{width:88px}
+  .promo-anchor .promo-text{font-size:11px;padding:4px 6px}
+}
+
+/* Payment UI: toasts and confirmation banner */
+.payment-toast{position:fixed;right:18px;bottom:18px;background:rgba(36,17,17,0.9);color:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.28);z-index:120;transition:opacity .28s ease}
+.payment-toast#payment-wait{background:linear-gradient(90deg,var(--accent),var(--accent2));font-weight:700}
+.payment-toast#payment-maybe{background:rgba(0,0,0,0.7)}
+
+#payment-confirmation{position:fixed;left:50%;transform:translateX(-50%);top:22px;z-index:130}
+#payment-confirmation .pc-inner{background:rgba(255,255,255,0.98);padding:10px 14px;border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,0.12);display:flex;align-items:center;gap:12px}
+#payment-confirmation button{background:var(--accent);color:#fff;border:none;padding:6px 10px;border-radius:8px;cursor:pointer;font-weight:700}
+
+@media (max-width:480px){
+  .payment-toast{left:12px;right:12px}
+  #payment-confirmation{top:auto;bottom:92px}
+}
