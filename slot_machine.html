@@ -145,6 +145,14 @@
       return;
     }
 
+    // Enforce the same blocked-name logic used by the local leaderboard.
+    try{
+      if(window.isNameBlocked && window.isNameBlocked(name)){
+        alert('Name contains inappropriate language — please choose another.');
+        return;
+      }
+    }catch(e){ /* on error, allow save to avoid blocking by accident */ }
+
     await addDoc(collection(db, "scores"), {
       name,
       score,

@@ -124,6 +124,16 @@
     return false;
   }
 
+  // Expose a small global wrapper so other modules (e.g. the Firebase live
+  // leaderboard script) can enforce the same blocker without duplicating
+  // the hashing/normalization logic. Returns true when the name should be
+  // blocked. Fail-safe: on error return false (do not block).
+  try{
+    window.isNameBlocked = function(n){
+      try{ return nameContainsBlocked(n); }catch(e){ console.warn('isNameBlocked error', e); return false; }
+    };
+  }catch(e){ /* ignore when sandboxed */ }
+
 
   let credits = 100;
   let spinning = false;
