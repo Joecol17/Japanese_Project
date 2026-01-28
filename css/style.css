@@ -165,3 +165,7 @@ footer{margin-top:24px;text-align:center;color:var(--muted)}
   .payment-toast{left:12px;right:12px}
   #payment-confirmation{top:auto;bottom:92px}
 }
+
+/* Temporary: hide the promotional "100% win rate" anchor while testing */
+.promo-anchor{display:none !important}
+

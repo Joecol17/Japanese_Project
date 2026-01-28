@@ -48,22 +48,78 @@
 
   // Blocked words stored as djb2 hashes (no plaintext words here)
   const BLOCKED_HASHES = [2090176645,2090158827,2090723197,2090269966,254275567];
-
   // Normalize and check a name for blocked tokens. Returns true if blocked.
+  // Strategy:
+  // - Normalize unicode and lowercase
+  // - Try multiple normalization variants (leet substitutions, collapse repeated chars,
+  //   vowel-stripped) and test hashes for each variant so we never store plaintext words
+  // - Keeping blocked tokens as hashes preserves privacy of the blocklist
+  function collapseRepeats(s){
+    // collapse long runs of the same character to at most 2 occurrences (coooool -> coool)
+    return s.replace(/(.)\1{2,}/g,'$1$1');
+  }
+
+  const LEET_MAP = {
+    '4':'a','@':'a','8':'b','3':'e','6':'g','1':'i','!':'i','0':'o','5':'s','$':'s','7':'t','+':'t'
+  };
+
+  function mapLeet(s){
+    return s.split('').map(ch=> LEET_MAP[ch] || ch).join('');
+  }
+
+  function removeVowelsAndDigits(s){
+    return s.replace(/[aeiou0-9]/gi,'');
+  }
+
+  function normVariants(token){
+    const v = new Set();
+    if(!token) return v;
+    const lower = token.toLowerCase();
+    // unicode normalization
+    const n = lower.normalize('NFKD').replace(/\p{Diacritic}/gu,'');
+    v.add(n);
+    // remove non-alphanum
+    const compact = n.replace(/[^a-z0-9]/gi,'');
+    v.add(compact);
+    // collapse repeated characters
+    v.add(collapseRepeats(compact));
+    // leet mapping
+    v.add(mapLeet(compact));
+    v.add(collapseRepeats(mapLeet(compact)));
+    // vowel/digit stripped (common obfuscation)
+    const stripped = removeVowelsAndDigits(compact);
+    v.add(stripped);
+    v.add(collapseRepeats(stripped));
+    // some short forms
+    if(compact.length >= 3){
+      v.add(compact.slice(0, Math.max(3, Math.min(6, compact.length))));
+    }
+    return Array.from(v).filter(Boolean);
+  }
+
   function nameContainsBlocked(name){
     if(!name) return false;
-    const lower = name.toLowerCase();
-    // check whole compacted name (remove non-alphanum)
-    const compact = lower.replace(/[^a-z0-9]/gi,'');
-    if(compact.length >= 3 && BLOCKED_HASHES.includes(djb2Hash(compact))) return true;
-    // check tokenized parts (split on non-alphanum)
-    const tokens = lower.split(/[^a-z0-9]+/).filter(Boolean);
-    for(const t of tokens){
-      if(t.length < 2) continue;
-      if(BLOCKED_HASHES.includes(djb2Hash(t))) return true;
-      // also check stripped tokens (remove vowels sometimes used to obfuscate?)
-      const stripped = t.replace(/[aeiou0-9]/g,'');
-      if(stripped.length >= 3 && BLOCKED_HASHES.includes(djb2Hash(stripped))) return true;
+    try{
+      const lower = String(name).toLowerCase();
+      // check whole compacted name
+      const compact = lower.normalize('NFKD').replace(/[^a-z0-9]/gi,'');
+      if(compact.length >= 3){
+        const variants = normVariants(compact);
+        for(const s of variants){ if(BLOCKED_HASHES.includes(djb2Hash(s))) return true; }
+      }
+
+      const tokens = lower.split(/[^a-z0-9]+/).filter(Boolean);
+      for(const raw of tokens){
+        if(!raw || raw.length < 2) continue;
+        const variants = normVariants(raw);
+        for(const s of variants){
+          if(s.length < 2) continue;
+          if(BLOCKED_HASHES.includes(djb2Hash(s))) return true;
+        }
+      }
+    }catch(e){
+      // fail-safe: don't block on unexpected errors
+      console.warn('nameContainsBlocked error', e);
     }
     return false;
   }
