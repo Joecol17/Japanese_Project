@@ -111,9 +111,12 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // LIVE LEADERBOARD
-  const leaderboard = document.getElementById("leaderboard");
+  // ELEMENTS
+  const lbList = document.getElementById("lbList");
+  const saveBtn = document.getElementById("saveScore");
+  const nameInput = document.getElementById("playerName");
 
+  // LIVE LEADERBOARD
   const q = query(
     collection(db, "scores"),
     orderBy("score", "desc"),
@@ -121,20 +124,22 @@
   );
 
   onSnapshot(q, (snapshot) => {
-    leaderboard.innerHTML = "";
+    lbList.innerHTML = "";
     snapshot.forEach((doc) => {
       const data = doc.data();
-      leaderboard.innerHTML += `<li>${data.name} — ${data.score}</li>`;
+      const li = document.createElement("li");
+      li.textContent = `${data.name} — ${data.score}`;
+      lbList.appendChild(li);
     });
   });
 
   // SAVE SCORE
-  window.saveScore = async function () {
-    const name = document.getElementById("name").value;
-    const score = Number(document.getElementById("score").value);
+  saveBtn.addEventListener("click", async () => {
+    const name = nameInput.value.trim();
+    const score = Number(document.getElementById("credits").textContent);
 
-    if (!name || !score) {
-      alert("Enter name and score");
+    if (!name) {
+      alert("Enter your name");
       return;
     }
 
@@ -143,8 +148,11 @@
       score,
       createdAt: Date.now()
     });
-  };
+
+    nameInput.value = "";
+  });
 </script>
+
 
 
 
