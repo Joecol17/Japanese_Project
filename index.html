@@ -87,5 +87,66 @@
     </a>
 
   <script src="js/script.js"></script>
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import {
+    getFirestore,
+    collection,
+    addDoc,
+    query,
+    orderBy,
+    limit,
+    onSnapshot
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyB_KMjAJb2ZmIiQ_0uRXkj_Z4GHaHhQM-w",
+    authDomain: "japanese-slots.firebaseapp.com",
+    projectId: "japanese-slots",
+    storageBucket: "japanese-slots.firebasestorage.app",
+    messagingSenderId: "524806796966",
+    appId: "1:524806796966:web:ea10a2972e7f6cc25b6667"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // LIVE LEADERBOARD
+  const leaderboard = document.getElementById("leaderboard");
+
+  const q = query(
+    collection(db, "scores"),
+    orderBy("score", "desc"),
+    limit(10)
+  );
+
+  onSnapshot(q, (snapshot) => {
+    leaderboard.innerHTML = "";
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      leaderboard.innerHTML += `<li>${data.name} — ${data.score}</li>`;
+    });
+  });
+
+  // SAVE SCORE
+  window.saveScore = async function () {
+    const name = document.getElementById("name").value;
+    const score = Number(document.getElementById("score").value);
+
+    if (!name || !score) {
+      alert("Enter name and score");
+      return;
+    }
+
+    await addDoc(collection(db, "scores"), {
+      name,
+      score,
+      createdAt: Date.now()
+    });
+  };
+</script>
+
+
+
 </body>
 </html>
