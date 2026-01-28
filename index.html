@@ -1,160 +1,65 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Mini Slot Game</title>
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="icon" href="../japan country project/images/japan.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Japan</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="../japan country project/images/japan.png">
 </head>
-<body class="jp-theme">
-  <main class="container">
+<body>
     <header>
-      <div class="header-left">
-        <h1>Lucky Reels <span class="jp">ラッキーリール</span></h1>
-        <p class="subtitle">A small simulated gambling game — play for fun only.</p>
-      </div>
-      <div class="header-actions">
-        <a class="nav-button" href="homepage.html" id="newPageBtn">Go to home page</a>
-      </div>
+        <div class="navcontainer" id="navid">
+            <a href="index.html" title="Home" class="navbutton"><span>Home</span></a>
+            <a href="innovations.html" title="Innovations & Achievements" class="navbutton"><span>Innovations</span></a>
+            <a href="culture.html"title="Culture & Heritage" class="navbutton"><span>Culture</span></a>
+            <a href="geography.html"title="Geography & Environment" class="navbutton"><span>Geography</span></a>
+            <a href="social_positives.html"title="Social Positives" class="navbutton"><span>Social Positives</span></a>
+            <a href="food.html"title="Food & Cuisine" class="navbutton"><span>Food</span></a>
+            <a href="flag.html"title="The Flag" class="navbutton"><span>The Flag</span></a>
+            <a href="slot_machine.html" title="Gambling" class="navbutton"><span>Slot machine</span></a>
+        </div>
     </header>
-    
 
-    <section class="game">
-      <div class="panel">
-        <div class="credits">Credits: <span id="credits">100</span></div>
-        <div class="controls">
-          <label>Bet:
-            <select id="bet">
-              <option value="1">1</option>
-              <option value="5">5</option>
-              <option value="10">10</option>
-              <option value="25">25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-              <option value="500">500</option>
-              <option value="1000">1000</option>
-              <option value="5000">5000</option>
-            </select>
-          </label>
-          <label class="custom-bet">Or custom:
-            <input id="customBet" type="number" min="1" placeholder="Custom" />
-          </label>
-          <button id="allIn">All In</button>
-          <button id="spin">Spin</button>
-          
-        </div>
-      </div>
+    <div class="container">
+        <section class="hero">
+            <div class="hero-text">
+                <h1>Japan</h1>
+                <p>Discover the culture, history, food, and innovations of Japan — a country where tradition and technology meet.</p>
+            </div>
+            <div class="hero-image">
+                <img src="images/pagoda.svg" alt="Pagoda illustration">
+            </div>
+        </section>
 
-      <div class="machine">
-        <div class="reels" id="reels">
-          <div class="reel" id="r0"></div>
-          <div class="reel" id="r1"></div>
-          <div class="reel" id="r2"></div>
-        </div>
-        <div class="machine-base"></div>
-      </div>
+        <section class="cards">
+            <article class="card">
+                <img src="images/cherry_blossom.svg" alt="Cherry blossom">
+                <div>
+                    <h3>Seasonal beauty</h3>
+                    <p>Experience hanami (cherry blossom viewing) and changing seasonal traditions.</p>
+                </div>
+            </article>
 
-      <aside class="leaderboard" id="leaderboard">
-        <div class="message" id="message">Good luck!</div>
-        <h2>Leaderboard</h2>
-        <div class="lb-controls">
-          <input id="playerName" placeholder="Your name" maxlength="20" />
-          <button id="saveScore">Save Score</button>
-        </div>
-        <ol id="lbList" class="lb-list"></ol>
-        <div class="lb-actions">
-          <button id="exportLb">Export</button>
-          <button id="importLbBtn">Import</button>
-        </div>
-        <textarea id="importLb" class="import-area" placeholder="Paste leaderboard JSON here"></textarea>
-      </aside>
+            <article class="card">
+                <img src="images/sushi.svg" alt="Sushi">
+                <div>
+                    <h3>Food culture</h3>
+                    <p>From sushi to ramen, explore the balance and presentation central to Japanese cuisine.</p>
+                </div>
+            </article>
 
-      
-    </section>
+            <article class="card">
+                <img src="images/pagoda.svg" alt="Pagoda small">
+                <div>
+                    <h3>Tradition & modernity</h3>
+                    <p>Find centuries-old temples standing beside futuristic cityscapes.</p>
+                </div>
+            </article>
+        </section>
 
-    <div id="confetti-root" class="confetti-root" aria-hidden="true"></div>
-    <div id="sakura-root" class="sakura-root" aria-hidden="true"></div>
-
-    <footer>
-      <small>For entertainment only. No real money involved.</small>
-    </footer>
-  </main>
-  
-    <a class="promo-anchor" href="https://buy.stripe.com/3cI00cfsH0wA1hp6Lw8IU00" target="_blank" aria-label="Support — gives you 100% win rate">
-      <span class="promo-text">Gives you 100% win rate</span>
-      <img src="images/Screenshot 2026-01-27 132044.png" alt="support">
-    </a>
-
-  <script src="js/script.js"></script>
-  <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import {
-    getFirestore,
-    collection,
-    addDoc,
-    query,
-    orderBy,
-    limit,
-    onSnapshot
-  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyB_KMjAJb2ZmIiQ_0uRXkj_Z4GHaHhQM-w",
-    authDomain: "japanese-slots.firebaseapp.com",
-    projectId: "japanese-slots",
-    storageBucket: "japanese-slots.firebasestorage.app",
-    messagingSenderId: "524806796966",
-    appId: "1:524806796966:web:ea10a2972e7f6cc25b6667"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  // ELEMENTS
-  const lbList = document.getElementById("lbList");
-  const saveBtn = document.getElementById("saveScore");
-  const nameInput = document.getElementById("playerName");
-
-  // LIVE LEADERBOARD
-  const q = query(
-    collection(db, "scores"),
-    orderBy("score", "desc"),
-    limit(10)
-  );
-
-  onSnapshot(q, (snapshot) => {
-    lbList.innerHTML = "";
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      const li = document.createElement("li");
-      li.textContent = `${data.name} — ${data.score}`;
-      lbList.appendChild(li);
-    });
-  });
-
-  // SAVE SCORE
-  saveBtn.addEventListener("click", async () => {
-    const name = nameInput.value.trim();
-    const score = Number(document.getElementById("credits").textContent);
-
-    if (!name) {
-      alert("Enter your name");
-      return;
-    }
-
-    await addDoc(collection(db, "scores"), {
-      name,
-      score,
-      createdAt: Date.now()
-    });
-
-    nameInput.value = "";
-  });
-</script>
-
-
-
+    </div>
 
 </body>
+
 </html>
