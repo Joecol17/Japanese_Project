@@ -94,12 +94,13 @@
   import {
     getFirestore,
     collection,
-    addDoc,
     query,
     orderBy,
     limit,
     onSnapshot
   } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
 
   const firebaseConfig = {
     apiKey:"AIzaSyB_KMjAJb2ZmIiQ_0uRXkj_Z4GHaHhQM-w",
@@ -135,31 +136,39 @@
     });
   });
 
-  // SAVE SCORE
+  // Initialize Auth (anonymous) and Functions
+  const auth = getAuth(app);
+  const functions = getFunctions(app);
+  // Sign the user in anonymously so the callable function has an auth context.
+  signInAnonymously(auth).catch(()=>{/* ignore sign-in failures; function will reject if unauthenticated */});
+
+  // SAVE SCORE (via callable cloud function)
   saveBtn.addEventListener("click", async () => {
-    const name = nameInput.value.trim();
-    const score = Number(document.getElementById("credits").textContent);
+    const name = nameInput.value.trim() || 'Player';
+    const score = Number(document.getElementById("credits").textContent) || 0;
 
     if (!name) {
       alert("Enter your name");
       return;
     }
 
-    // Enforce the same blocked-name logic used by the local leaderboard.
     try{
       if(window.isNameBlocked && window.isNameBlocked(name)){
         alert('Name contains inappropriate language — please choose another.');
         return;
       }
-    }catch(e){ /* on error, allow save to avoid blocking by accident */ }
+    }catch(e){ /* allow save on blocker error */ }
 
-    await addDoc(collection(db, "scores"), {
-      name,
-      score,
-      createdAt: Date.now()
-    });
-
-    nameInput.value = "";
+    try{
+      const saveScoreFn = httpsCallable(functions, 'saveScore');
+      const res = await saveScoreFn({ name, score });
+      // res.data contains { id, score }
+      alert('Score saved (server recorded score: ' + (res.data && res.data.score) + ')');
+      nameInput.value = '';
+    }catch(err){
+      console.error('saveScore call failed', err);
+      alert('Failed to save score: ' + (err && err.message ? err.message : String(err)));
+    }
   });
 </script>
 
