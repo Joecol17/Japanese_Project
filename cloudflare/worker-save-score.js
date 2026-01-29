@@ -13,17 +13,53 @@ function clampInt(n, min, max) {
   return Math.min(Math.max(Math.floor(num), min), max);
 }
 
-function jsonResponse(status, body, extraHeaders = {}) {
+function corsHeaders(origin) {
+  return {
+    ...(origin ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } : {}),
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  };
+}
+
+function jsonResponse(status, body, extraHeaders = {}, origin = null) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      ...corsHeaders(origin),
       ...extraHeaders
     }
   });
+}
+
+function getAllowedOrigin(origin, env) {
+  if (!origin) return null;
+  const raw = (env && env.ALLOWED_ORIGINS) ? env.ALLOWED_ORIGINS : '';
+  const allowed = raw.split(',').map(s => s.trim()).filter(Boolean);
+  if (allowed.includes('*')) return origin;
+  return allowed.includes(origin) ? origin : null;
+}
+
+// Simple IP-based rate limiting using KV (20 requests per minute)
+async function enforceRateLimit(env, request, origin) {
+  if (!env || !env.RATE_LIMIT) return null; // If KV not bound, skip rate limiting
+
+  const ip = request.headers.get('CF-Connecting-IP')
+    || (request.headers.get('x-forwarded-for') || '').split(',')[0].trim()
+    || 'unknown';
+
+  const windowMs = 60_000;
+  const limit = 20;
+  const windowKey = `rl:${ip}:${Math.floor(Date.now() / windowMs)}`;
+
+  const raw = await env.RATE_LIMIT.get(windowKey);
+  const count = Number(raw || 0);
+  if (count >= limit) {
+    return jsonResponse(429, { error: 'Rate limit exceeded' }, {}, origin);
+  }
+
+  await env.RATE_LIMIT.put(windowKey, String(count + 1), { expirationTtl: 70 });
+  return null;
 }
 
 function parseServiceAccount(raw) {
@@ -96,12 +132,21 @@ async function getAccessToken(serviceAccount) {
 
 export default {
   async fetch(request, env) {
+    const origin = request.headers.get('Origin');
+    const allowedOrigin = getAllowedOrigin(origin, env);
+    if (origin && !allowedOrigin) {
+      return jsonResponse(403, { error: 'Origin not allowed' }, {}, null);
+    }
+
+    const rateLimited = await enforceRateLimit(env, request, allowedOrigin);
+    if (rateLimited) return rateLimited;
+
     if (request.method === 'OPTIONS') {
-      return jsonResponse(204, {});
+      return jsonResponse(204, {}, {}, allowedOrigin);
     }
 
     if (request.method !== 'POST') {
-      return jsonResponse(405, { error: 'Method not allowed' });
+      return jsonResponse(405, { error: 'Method not allowed' }, {}, allowedOrigin);
     }
 
     try {
@@ -118,7 +163,7 @@ export default {
       const collection = ALLOWED_COLLECTIONS.has(rawCollection) ? rawCollection : 'blackjack_scores';
 
       if (!Number.isFinite(clientScore) || clientScore < 0) {
-        return jsonResponse(400, { error: 'Invalid score' });
+        return jsonResponse(400, { error: 'Invalid score' }, {}, allowedOrigin);
       }
 
       const limits = GAME_LIMITS[collection] || GAME_LIMITS.blackjack_scores;
@@ -135,7 +180,7 @@ export default {
 
       // Reject any score that exceeds what is mathematically possible
       if (score > maxPossibleScore) {
-        return jsonResponse(422, { error: 'Score exceeds maximum possible' });
+        return jsonResponse(422, { error: 'Score exceeds maximum possible' }, {}, allowedOrigin);
       }
       const serviceAccount = parseServiceAccount(env.FIREBASE_SERVICE_ACCOUNT);
       const accessToken = await getAccessToken(serviceAccount);
@@ -166,9 +211,9 @@ export default {
       }
 
       const saved = await res.json();
-      return jsonResponse(200, { id: saved.name, score });
+      return jsonResponse(200, { id: saved.name, score }, {}, allowedOrigin);
     } catch (err) {
-      return jsonResponse(500, { error: err.message || 'Failed to save score' });
+      return jsonResponse(500, { error: err.message || 'Failed to save score' }, {}, allowedOrigin);
     }
   }
 };

@@ -2,6 +2,11 @@ name = "save-score"
 main = "worker-save-score.js"
 compatibility_date = "2024-12-01"
 
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "18c88848367947a1ae6b555b187e3658"
+
 [vars]
 # Do NOT put your service account JSON here. Set it as a secret:
 # wrangler secret put FIREBASE_SERVICE_ACCOUNT
+ALLOWED_ORIGINS = "https://YOUR_DOMAIN"

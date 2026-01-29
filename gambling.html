@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://www.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://save-score.japanesegyanburu.workers.dev; object-src 'none'; base-uri 'self'; form-action 'self' https://buy.stripe.com">
   <title>Gambling - Games</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" type="image/png" href="/images/japan.png">
@@ -23,7 +24,7 @@
           <a href="gambling.html" title="Gambling" class="navbutton"><span>Gambling ▾</span></a>
           <div class="dropdown-menu" role="menu" aria-label="Games">
               <a href="slot_machine.html" class="dropdown-item">Slots</a>
-              <a href="game2.html" class="dropdown-item">Game 2</a>
+              <a href="game2.html" class="dropdown-item">Blackjack</a>
               <a href="game3.html" class="dropdown-item">Game 3</a>
           </div>
       </div>
@@ -75,7 +76,7 @@
   </main>
 
   <script type="module">
-    // Mirror top scores from the Slots leaderboard (collection 'scores')
+   
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -93,9 +94,7 @@
 
     const slotsList = document.getElementById('globalSlotsLb');
 
-    // Subscribe to the top 5 scores from the Slots collection and mirror only
-    // into the Slots card leaderboard. If there are no scores, render 5
-    // placeholder lines labelled 'tbd'. Ensure numbering is rendered once.
+   
     const q = query(collection(db,'scores'), orderBy('score','desc'), limit(5));
     onSnapshot(q, snap => {
       const items = [];
@@ -103,30 +102,30 @@
       if(!slotsList) return;
       slotsList.innerHTML = '';
       if(items.length === 0){
-        // show 5 placeholder entries (no duplicated numbering)
+     
         for(let i=0;i<5;i++){
           const li = document.createElement('li');
-          li.textContent = `tbd`;
+          li.innerHTML = `<span class="gl-rank">${i + 1}.</span> TBD <span class="gl-score">—</span>`;
           slotsList.appendChild(li);
         }
         return;
       }
-      // Render actual items (up to 5)
+    
       items.forEach((d,i)=>{
         const li = document.createElement('li');
-        // Render name and emphasize score in a span so CSS can style it
-        li.innerHTML = `${escapeHtml(d.name)} <span class="gl-score">${escapeHtml(String(d.score))}</span>`;
+      
+        li.innerHTML = `<span class="gl-rank">${i + 1}.</span> ${escapeHtml(d.name)} <span class="gl-score">${escapeHtml(String(d.score))}</span>`;
         slotsList.appendChild(li);
       });
-      // If fewer than 5 entries, pad with tbd
+      
       for(let j=items.length;j<5;j++){
         const li = document.createElement('li');
-        li.innerHTML = `tbd <span class="gl-score">—</span>`;
+        li.innerHTML = `<span class="gl-rank">${j + 1}.</span> TBD <span class="gl-score">—</span>`;
         slotsList.appendChild(li);
       }
     });
 
-    // small helper to escape text inserted via innerHTML
+    
     function escapeHtml(s){
       return String(s)
         .replace(/&/g,'&amp;')

@@ -255,15 +255,26 @@
   function revealDealerCard(){
     if(!dealerHiddenEl) return;
     // flip animation: swap image to actual face
-    const face = dealerCards[1].src;
-    // simple flip using scaleX
-    dealerHiddenEl.style.transition = 'transform 360ms ease';
-    dealerHiddenEl.style.transform = 'scaleX(0)';
-    setTimeout(()=>{
-      dealerHiddenEl.src = face;
-      dealerHiddenEl.style.transform = '';
+    const face = dealerCards[1] && dealerCards[1].src;
+    if(!face) return;
+    dealerHiddenEl.style.opacity = '1';
+    // use CSS class flip + swap on transition end
+    const el = dealerHiddenEl;
+    let swapped = false;
+    const onDone = () => {
+      if(swapped) return;
+      swapped = true;
+      el.src = face;
+      el.classList.remove('bj-flip');
       updateHandValues();
-    }, 360);
+    };
+    el.addEventListener('transitionend', function once(){
+      el.removeEventListener('transitionend', once);
+      onDone();
+    });
+    el.classList.add('bj-flip');
+    // fallback in case transitionend doesn't fire
+    setTimeout(onDone, 300);
     dealerHiddenEl = null;
   }
 
