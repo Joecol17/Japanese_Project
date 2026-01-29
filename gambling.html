@@ -41,12 +41,8 @@
         <a class="play-btn navbutton" href="slot_machine.html">Play</a>
         <div class="global-leaderboard">
           <h3>Global Leaderboard</h3>
-          <ol>
-            <li>1. —</li>
-            <li>2. —</li>
-            <li>3. —</li>
-            <li>4. —</li>
-            <li>5. —</li>
+          <ol id="globalSlotsLb">
+            <li>Loading…</li>
           </ol>
         </div>
       </article>
@@ -57,12 +53,8 @@
         <a class="play-btn navbutton" href="game2.html">Play</a>
         <div class="global-leaderboard">
           <h3>Global Leaderboard</h3>
-          <ol>
-            <li>1. —</li>
-            <li>2. —</li>
-            <li>3. —</li>
-            <li>4. —</li>
-            <li>5. —</li>
+          <ol id="globalGame2Lb">
+            <li>Loading…</li>
           </ol>
         </div>
       </article>
@@ -73,18 +65,77 @@
         <a class="play-btn navbutton" href="game3.html">Play</a>
         <div class="global-leaderboard">
           <h3>Global Leaderboard</h3>
-          <ol>
-            <li>1. —</li>
-            <li>2. —</li>
-            <li>3. —</li>
-            <li>4. —</li>
-            <li>5. —</li>
+          <ol id="globalGame3Lb">
+            <li>Loading…</li>
           </ol>
         </div>
       </article>
     </section>
 
   </main>
+
+  <script type="module">
+    // Mirror top scores from the Slots leaderboard (collection 'scores')
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_KMjAJb2ZmIiQ_0uRXkj_Z4GHaHhQM-w",
+      authDomain: "japanese-slots.firebaseapp.com",
+      projectId: "japanese-slots",
+      storageBucket: "japanese-slots.firebasestorage.app",
+      messagingSenderId: "524806796966",
+      appId: "1:524806796966:web:ea10a2972e7f6cc25b6667"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const slotsList = document.getElementById('globalSlotsLb');
+
+    // Subscribe to the top 5 scores from the Slots collection and mirror only
+    // into the Slots card leaderboard. If there are no scores, render 5
+    // placeholder lines labelled 'tbd'. Ensure numbering is rendered once.
+    const q = query(collection(db,'scores'), orderBy('score','desc'), limit(5));
+    onSnapshot(q, snap => {
+      const items = [];
+      snap.forEach(doc => items.push(doc.data()));
+      if(!slotsList) return;
+      slotsList.innerHTML = '';
+      if(items.length === 0){
+        // show 5 placeholder entries (no duplicated numbering)
+        for(let i=0;i<5;i++){
+          const li = document.createElement('li');
+          li.textContent = `tbd`;
+          slotsList.appendChild(li);
+        }
+        return;
+      }
+      // Render actual items (up to 5)
+      items.forEach((d,i)=>{
+        const li = document.createElement('li');
+        // Render name and emphasize score in a span so CSS can style it
+        li.innerHTML = `${escapeHtml(d.name)} <span class="gl-score">${escapeHtml(String(d.score))}</span>`;
+        slotsList.appendChild(li);
+      });
+      // If fewer than 5 entries, pad with tbd
+      for(let j=items.length;j<5;j++){
+        const li = document.createElement('li');
+        li.innerHTML = `tbd <span class="gl-score">—</span>`;
+        slotsList.appendChild(li);
+      }
+    });
+
+    // small helper to escape text inserted via innerHTML
+    function escapeHtml(s){
+      return String(s)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#39;');
+    }
+  </script>
 
   <footer style="text-align:center;padding:20px;color:var(--dark-gray)">Global leaderboards are frontend placeholders for now.</footer>
 </body>

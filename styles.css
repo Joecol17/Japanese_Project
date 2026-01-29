@@ -79,6 +79,18 @@ header {
 .global-leaderboard ol{padding-left:18px;margin:0}
 .global-leaderboard li{padding:6px 0;border-bottom:1px dashed rgba(0,0,0,0.04);font-size:14px}
 
+/* Emphasize score value in leaderboards: right aligned, bold, accent color */
+.global-leaderboard li{display:flex;justify-content:space-between;align-items:center}
+.global-leaderboard li .gl-score{font-weight:900;color:var(--primary-red);margin-left:12px}
+
+/* Blackjack card visuals */
+.bj-card{width:84px;height:116px;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.25);transform-origin:center center;backface-visibility:hidden}
+.bj-card.placed{position:relative;width:84px;height:116px;margin-right:8px}
+.bj-card.bj-flip{transition:transform 360ms ease;transform:rotateY(90deg)}
+
+/* small status */
+#bjStatus{margin:10px 0;color:var(--accent-gold);font-weight:700}
+
 h1 {
     color: var(--primary-red);
     font-size: 2.5em;

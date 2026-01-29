@@ -169,3 +169,26 @@ footer{margin-top:24px;text-align:center;color:var(--muted)}
 /* Temporary: hide the promotional "100% win rate" anchor while testing */
 .promo-anchor{display:none !important}
 
+/* Blackjack specific layout and card styles */
+.blackjack-area{width:100%;max-width:720px;margin:14px auto;padding:12px;background:linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,250,250,0.98));border-radius:12px;border:1px solid rgba(183,28,28,0.06);box-shadow:0 12px 36px rgba(0,0,0,0.04)}
+.bj-table{display:flex;flex-direction:column;gap:12px}
+.bj-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.bj-hand{min-height:140px;padding:8px;border-radius:10px;background:linear-gradient(180deg,#fff,#fff7f6);border:1px solid rgba(183,28,28,0.04);display:flex;align-items:flex-start;position:relative;overflow:visible}
+.bj-hand .bj-card{width:84px;height:116px;border-radius:8px;box-shadow:0 10px 28px rgba(0,0,0,0.12);transition:transform .28s ease,opacity .22s ease;margin-left:-56px}
+.bj-hand .bj-card:first-child{margin-left:0}
+.bj-card{will-change:transform,opacity}
+
+/* small flip helper used by JS (scaleX trick) */
+.bj-flip{transition:transform 260ms ease;transform:scaleX(0)}
+
+/* deck anchor should sit above page but not block clicks */
+#bj-deck-anchor{pointer-events:none;z-index:999}
+
+/* Status/controls contrast */
+#bjStatus{padding:8px 10px;border-radius:10px;background:linear-gradient(180deg,#fff8f8,#fff3f3);border:1px solid rgba(183,28,28,0.06);color:var(--muted);font-weight:800}
+
+/* Polished leave/home button for Blackjack page */
+.leave-button{display:inline-block;padding:8px 12px;border-radius:999px;background:linear-gradient(180deg,var(--accent),var(--accent2));color:#fff;font-weight:800;text-decoration:none;border:0;box-shadow:0 8px 20px rgba(183,28,28,0.16)}
+.leave-button.secondary{background:#fff;border:1px solid rgba(183,28,28,0.08);color:var(--accent);box-shadow:none}
+
+
