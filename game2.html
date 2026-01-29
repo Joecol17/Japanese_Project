@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Game 2</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/png" href="/images/japan.png">
+  <link rel="shortcut icon" href="/images/japan.png">
+  <link rel="icon" href="images/japan.png">
+</head>
+<body class="jp-theme dark-game">
+  <style>
+    /* Darker game background overrides for blackjack */
+    body.dark-game{background: linear-gradient(180deg,#0f1720 0%, #121826 100%); color:#f0f6fb}
+    body.dark-game .container::before{background: radial-gradient(circle at 10% 10%, rgba(255,255,255,0.02), transparent 20%)}
+    body.dark-game header{background:rgba(0,0,0,0.3)}
+    .blackjack-table{background:linear-gradient(180deg,#0b2a14,#0f3b1f);padding:18px;border-radius:12px;color:#fff;box-shadow:0 12px 40px rgba(2,6,23,0.6)}
+    .hand{display:flex;gap:12px;align-items:center}
+    .card{width:72px;height:96px;border-radius:8px;background:#fff;color:#000;display:flex;align-items:center;justify-content:center;font-weight:800}
+    .controls{display:flex;gap:8px;margin-top:12px}
+    .dark-credits{font-weight:800;color:#ffd166}
+    .global-leaderboard{background:transparent;border:1px dashed rgba(255,255,255,0.06);padding:12px;margin-top:16px}
+  </style>
+  <header>
+    <div class="navcontainer" id="navid">
+      <a href="index.html" title="Home" class="navbutton"><span>Home</span></a>
+      <a href="innovations.html" title="Innovations & Achievements" class="navbutton"><span>Innovations</span></a>
+      <a href="culture.html"title="Culture & Heritage" class="navbutton"><span>Culture</span></a>
+      <a href="geography.html"title="Geography & Environment" class="navbutton"><span>Geography</span></a>
+      <a href="social_positives.html"title="Social Positives" class="navbutton"><span>Social Positives</span></a>
+      <a href="food.html"title="Food & Cuisine" class="navbutton"><span>Food</span></a>
+      <a href="flag.html"title="The Flag" class="navbutton"><span>The Flag</span></a>
+      <div class="navdropdown">
+          <a href="gambling.html" title="Gambling" class="navbutton"><span>Gambling ▾</span></a>
+          <div class="dropdown-menu" role="menu" aria-label="Games">
+              <a href="slot_machine.html" class="dropdown-item">Slots</a>
+              <a href="game2.html" class="dropdown-item">Game 2</a>
+              <a href="game3.html" class="dropdown-item">Game 3</a>
+          </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" style="margin-top:28px;">
+    <header style="margin-bottom:14px">
+      <h1 style="margin:0;color:#fff">Blackjack — Table</h1>
+      <p style="color:rgba(255,255,255,0.75);margin-top:6px">A simple blackjack layout — frontend + leaderboard (backend same as Slots).</p>
+    </header>
+
+    <section class="blackjack-table">
+      <div class="panel" style="background:transparent;border:none;padding:0;margin-bottom:12px">
+        <div class="credits">Chips: <span id="bjCredits" class="dark-credits">500</span></div>
+        <div class="controls" style="justify-content:flex-end">
+          <label>Bet:
+            <select id="bjBet">
+              <option>10</option>
+              <option>25</option>
+              <option>50</option>
+              <option>100</option>
+            </select>
+          </label>
+          <button id="bjDeal" class="navbutton">Deal</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <h3 style="color:#ffd166;margin:6px 0">Dealer</h3>
+        <div class="hand" id="dealerHand">
+          <div class="card">?</div>
+          <div class="card">?</div>
+        </div>
+      </div>
+
+      <div>
+        <h3 style="color:#ffd166;margin:6px 0">Player</h3>
+        <div class="hand" id="playerHand">
+          <div class="card">A♠</div>
+          <div class="card">9♥</div>
+        </div>
+        <div class="controls">
+          <button id="bjHit" class="navbutton">Hit</button>
+          <button id="bjStand" class="navbutton">Stand</button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label style="color:rgba(255,255,255,0.85);">Your name: <input id="bjName" placeholder="Player" maxlength="20" style="margin-left:8px;padding:8px;border-radius:6px;border:none" /></label>
+        <button id="bjSave" class="navbutton" style="margin-left:8px">Save Score</button>
+      </div>
+
+      <section class="global-leaderboard">
+            <h3>Global Leaderboard</h3>
+            <ol id="bjLb">
+              <li>Loading…</li>
+            </ol>
+      </section>
+    </section>
+
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      query,
+      orderBy,
+      limit,
+      onSnapshot
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_KMjAJb2ZmIiQ_0uRXkj_Z4GHaHhQM-w",
+      authDomain: "japanese-slots.firebaseapp.com",
+      projectId: "japanese-slots",
+      storageBucket: "japanese-slots.firebasestorage.app",
+      messagingSenderId: "524806796966",
+      appId: "1:524806796966:web:ea10a2972e7f6cc25b6667"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const lbEl = document.getElementById('bjLb');
+    const saveBtn = document.getElementById('bjSave');
+    const nameInput = document.getElementById('bjName');
+
+    const q = query(collection(db, 'blackjack_scores'), orderBy('score','desc'), limit(5));
+    onSnapshot(q, (snap) => {
+      lbEl.innerHTML = '';
+      snap.forEach(doc => {
+        const d = doc.data();
+        const li = document.createElement('li');
+        li.textContent = `${d.name} — ${d.score}`;
+        lbEl.appendChild(li);
+      });
+      if(lbEl.children.length === 0) lbEl.innerHTML = '<li>No scores yet.</li>';
+    });
+
+    saveBtn.addEventListener('click', async ()=>{
+      const name = (nameInput.value || '').trim() || 'Player';
+      const score = Number(document.getElementById('bjCredits').textContent) || 0;
+      try{ if(window.isNameBlocked && window.isNameBlocked(name)){ alert('Name contains inappropriate language — please choose another.'); return; } }catch(e){}
+      await addDoc(collection(db,'blackjack_scores'), { name, score, createdAt: Date.now() });
+      nameInput.value = '';
+    });
+  </script>
+
+  <footer style="text-align:center;padding:20px;color:var(--dark-gray)">Global leaderboard is a frontend placeholder.</footer>
+</body>
+</html>
+
+

@@ -59,6 +59,26 @@ header {
     z-index: 2;
 }
 
+/* Gambling dropdown menu in the header */
+.navdropdown{position:relative;display:inline-block}
+.dropdown-menu{position:absolute;top:100%;right:0;background:var(--white);padding:8px;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.12);display:none;min-width:180px;z-index:1100}
+.navdropdown:focus-within .dropdown-menu,.navdropdown:hover .dropdown-menu{display:block}
+.dropdown-item{display:block;color:var(--dark-gray);text-decoration:none;padding:8px 12px;border-radius:6px;margin:6px 0;font-weight:700}
+.dropdown-item:hover{background:rgba(188,0,45,0.06);color:var(--primary-red)}
+
+/* Gambling page layout: three game cards */
+.games-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
+.game-card{background:var(--white);padding:18px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.06);display:flex;flex-direction:column;gap:10px;align-items:stretch}
+.game-card h3{margin:0;color:var(--primary-red)}
+.game-card p{color:var(--dark-gray)}
+.game-card .play-btn{margin-top:auto;align-self:flex-end}
+
+/* Global leaderboard (frontend-only placeholder) */
+.global-leaderboard{margin-top:18px;padding:14px;border-radius:10px;background:linear-gradient(180deg,var(--white),#fafafa);box-shadow:0 6px 20px rgba(0,0,0,0.06)}
+.global-leaderboard h3{margin:0 0 8px 0;color:var(--primary-red);font-size:1.1rem}
+.global-leaderboard ol{padding-left:18px;margin:0}
+.global-leaderboard li{padding:6px 0;border-bottom:1px dashed rgba(0,0,0,0.04);font-size:14px}
+
 h1 {
     color: var(--primary-red);
     font-size: 2.5em;
