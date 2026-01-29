@@ -133,6 +133,18 @@
 
 
   let credits = 100;
+  // Track rounds played (spins) for server-side validation
+  const SPINS_KEY = 'luckyReels_spins_v1';
+  let spinsPlayed = 1;
+  try{
+    const rawSpins = localStorage.getItem(SPINS_KEY);
+    const parsed = parseInt(rawSpins, 10);
+    if(Number.isFinite(parsed) && parsed > 0) spinsPlayed = parsed;
+  }catch(e){ /* ignore */ }
+
+  try{
+    window.getSlotsRoundsPlayed = function(){ return spinsPlayed; };
+  }catch(e){ /* ignore */ }
   let spinning = false;
   const rand = (n) => Math.floor(Math.random()*n);
 
@@ -417,6 +429,9 @@
             credits -= bet;
             setMessage('No win — try again!','');
           }
+          // increment rounds played after a completed spin
+          spinsPlayed = Math.max(1, spinsPlayed + 1);
+          try{ localStorage.setItem(SPINS_KEY, String(spinsPlayed)); }catch(e){}
           updateCredits();
           checkCreditsForRebuy();
           // auto-suggest saving when you have a high score: if current credits > top leaderboard score, hint user

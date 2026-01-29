@@ -34,6 +34,18 @@
   }
   function updateCreditsUI(){ creditsEl.textContent = stats.credits; }
 
+  // Expose a read-only getter so other scripts (e.g. save handlers) don't rely on DOM text
+  try{
+    window.getBlackjackCredits = function(){ return stats.credits; };
+    window.getBlackjackRoundsPlayed = function(){ return Math.max(1, stats.games || 0); };
+    window.getBlackjackMaxBet = function(){
+      try{
+        const v = parseInt(betEl && betEl.value ? betEl.value : '0', 10);
+        return Number.isFinite(v) && v > 0 ? v : 1;
+      }catch(e){ return 1; }
+    };
+  }catch(e){ /* ignore */ }
+
   // Deck factory
   function buildDeck(){
     const suits = ['clubs','diamonds','hearts','spades'];

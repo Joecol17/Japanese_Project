@@ -1,0 +1,7 @@
+name = "save-score"
+main = "worker-save-score.js"
+compatibility_date = "2024-12-01"
+
+[vars]
+# Do NOT put your service account JSON here. Set it as a secret:
+# wrangler secret put FIREBASE_SERVICE_ACCOUNT

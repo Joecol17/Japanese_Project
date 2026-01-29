@@ -76,12 +76,10 @@
     import {
       getFirestore,
       collection,
-      addDoc,
       query,
       orderBy,
       limit,
-      onSnapshot,
-      serverTimestamp
+      onSnapshot
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -112,16 +110,31 @@
       if(lbEl.children.length === 0) lbEl.innerHTML = '<li>No scores yet.</li>';
     });
 
+    const saveEndpoint = 'https://save-score.japanesegyanburu.workers.dev';
+
     saveBtn.addEventListener('click', async ()=>{
       const rawName = (nameInput.value || '').trim() || 'Player';
       const name = rawName.slice(0,20);
-      const score = Number(document.getElementById('bjCredits').textContent) || 0;
+      const score = Number((window.getBlackjackCredits && window.getBlackjackCredits()) ?? 0);
+      const maxBet = Number((window.getBlackjackMaxBet && window.getBlackjackMaxBet()) ?? 1);
+      const roundsPlayed = Number((window.getBlackjackRoundsPlayed && window.getBlackjackRoundsPlayed()) ?? 1);
+      const maxMultiplier = 2;
       // client-side validation to avoid accidental bad writes
-      if(!Number.isFinite(score) || score < 0 || score > 1000000){ alert('Invalid score value.'); return; }
+      if(!Number.isFinite(score) || score < 0 || score > 50000){ alert('Invalid score value.'); return; }
       if(name.length === 0){ alert('Please enter a name.'); return; }
       try{ if(window.isNameBlocked && window.isNameBlocked(name)){ alert('Name contains inappropriate language — please choose another.'); return; } }catch(e){}
-      // Use serverTimestamp() so createdAt is set by Firestore server and cannot be forged
-      await addDoc(collection(db,'blackjack_scores'), { name, score, createdAt: serverTimestamp() });
+      await fetch(saveEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          score,
+          collection: 'blackjack_scores',
+          maxBet,
+          maxMultiplier,
+          roundsPlayed
+        })
+      });
       nameInput.value = '';
     });
   </script>

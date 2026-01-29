@@ -99,8 +99,6 @@
     limit,
     onSnapshot
   } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
 
   const firebaseConfig = {
     apiKey:"AIzaSyB_KMjAJb2ZmIiQ_0uRXkj_Z4GHaHhQM-w",
@@ -136,16 +134,26 @@
     });
   });
 
-  // Initialize Auth (anonymous) and Functions
-  const auth = getAuth(app);
-  const functions = getFunctions(app);
-  // Sign the user in anonymously so the callable function has an auth context.
-  signInAnonymously(auth).catch(()=>{/* ignore sign-in failures; function will reject if unauthenticated */});
+  const saveEndpoint = 'https://save-score.japanesegyanburu.workers.dev';
 
   // SAVE SCORE (via callable cloud function)
   saveBtn.addEventListener("click", async () => {
     const name = nameInput.value.trim() || 'Player';
     const score = Number(document.getElementById("credits").textContent) || 0;
+    const betSelect = document.getElementById('bet');
+    const customBet = document.getElementById('customBet');
+    let maxBet = 1;
+    try{
+      if(betSelect && betSelect.options && betSelect.options.length){
+        const lastOpt = betSelect.options[betSelect.options.length - 1];
+        const optVal = Number(lastOpt && lastOpt.value);
+        if(Number.isFinite(optVal) && optVal > maxBet) maxBet = optVal;
+      }
+      const customVal = Number(customBet && customBet.value);
+      if(Number.isFinite(customVal) && customVal > maxBet) maxBet = customVal;
+    }catch(e){}
+    const roundsPlayed = Number((window.getSlotsRoundsPlayed && window.getSlotsRoundsPlayed()) ?? 1);
+    const maxMultiplier = 10;
 
     if (!name) {
       alert("Enter your name");
@@ -160,10 +168,24 @@
     }catch(e){ /* allow save on blocker error */ }
 
     try{
-      const saveScoreFn = httpsCallable(functions, 'saveScore');
-      const res = await saveScoreFn({ name, score });
-      // res.data contains { id, score }
-      alert('Score saved (server recorded score: ' + (res.data && res.data.score) + ')');
+      const res = await fetch(saveEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          score,
+          collection: 'scores',
+          maxBet,
+          maxMultiplier,
+          roundsPlayed
+        })
+      });
+      if(!res.ok){
+        const text = await res.text();
+        throw new Error(text || 'Save failed');
+      }
+      const data = await res.json();
+      alert('Score saved (server recorded score: ' + (data && data.score) + ')');
       nameInput.value = '';
     }catch(err){
       console.error('saveScore call failed', err);
