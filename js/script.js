@@ -25,9 +25,6 @@
   const saveScoreBtn = document.getElementById('saveScore');
   const playerNameInput = document.getElementById('playerName');
   const lbList = document.getElementById('lbList');
-  const exportBtn = document.getElementById('exportLb');
-  const importBtn = document.getElementById('importLbBtn');
-  const importArea = document.getElementById('importLb');
   const msgEl = document.getElementById('message');
   const reels = [document.getElementById('r0'), document.getElementById('r1'), document.getElementById('r2')];
   const confettiRoot = document.getElementById('confetti-root');
@@ -269,29 +266,7 @@
     });
   }
 
-  exportBtn && exportBtn.addEventListener('click', ()=>{
-    const raw = localStorage.getItem(LB_KEY) || '[]';
-    navigator.clipboard?.writeText(raw).then(()=>{
-      setMessage('Leaderboard JSON copied to clipboard. You can paste to share.','');
-    }).catch(()=>{
-      setMessage('Copy failed — open the import box and copy manually.','');
-    });
-  });
-
-  importBtn && importBtn.addEventListener('click', ()=>{
-    const txt = importArea.value.trim();
-    if(!txt){ setMessage('Paste leaderboard JSON into the box first.',''); return; }
-    try{
-      const imported = JSON.parse(txt);
-      if(!Array.isArray(imported)){ throw new Error('Invalid format'); }
-      // merge
-      const list = loadLeaderboard().concat(imported);
-      list.sort((a,b)=>b.score - a.score);
-      saveLeaderboard(list.slice(0,50));
-      renderLeaderboard();
-      setMessage('Imported leaderboard (merged).','');
-    }catch(e){ setMessage('Invalid JSON — import failed.',''); }
-  });
+  // Export/import functionality removed to prevent manual editing of leaderboard JSON
 
   saveScoreBtn && saveScoreBtn.addEventListener('click', ()=>{
     const rawName = (playerNameInput.value || '').trim();
@@ -314,7 +289,7 @@
   renderLeaderboard();
 
   // Diagnostics: report missing elements to the console and UI
-  const required = { spinBtn, saveScoreBtn, exportBtn, importBtn, creditsEl, playerNameInput };
+  const required = { spinBtn, saveScoreBtn, creditsEl, playerNameInput };
   Object.entries(required).forEach(([k,v])=>{
     if(!v) console.warn(`Element ${k} is missing (null)`);
   });

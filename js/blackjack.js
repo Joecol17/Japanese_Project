@@ -58,10 +58,15 @@
   function handValue(cards){
     let total=0; let aces=0;
     for(const c of cards){
-      const r = c.rank;
-      if(r==='jack'||r==='queen'||r==='king') total += 10;
-      else if(r==='ace'){ total += 11; aces++; }
-      else total += Number(r);
+      if(!c || typeof c.rank === 'undefined') continue;
+      const rRaw = String(c.rank).toLowerCase().trim();
+      if(rRaw==='jack' || rRaw==='queen' || rRaw==='king') total += 10;
+      else if(rRaw==='ace'){ total += 11; aces++; }
+      else if(/^\d+$/.test(rRaw)) total += parseInt(rRaw,10);
+      else {
+        // unknown rank (e.g. 'hidden') — ignore for counting
+        continue;
+      }
     }
     while(total>21 && aces>0){ total -= 10; aces--; }
     return total;
@@ -126,6 +131,8 @@
   let dealerCards = []; let playerCards = [];
   let dealerHiddenEl = null; // DOM element for hidden card
   let inRound = false; let currentBet = 0;
+  let autoDealActive = false;
+  let roundCleared = true; // becomes false when a round is active and before resetTable finishes
 
   // Reset the table. If `immediate` is true, remove card elements synchronously
   // otherwise animate them away first. This guarantees no lingering DOM nodes.
@@ -151,6 +158,9 @@
     dealerHiddenEl = null;
     updateControls();
     setStatus('Place your bet and deal.');
+    updateHandValues();
+    // mark that table is now cleared
+    roundCleared = true;
   }
 
   function setStatus(msg){ statusEl.textContent = msg; }
@@ -160,12 +170,27 @@
     dealBtn.disabled = inRound;
     hitBtn.disabled = !inRound;
     standBtn.disabled = !inRound;
+    // disable presets while in a round
+    const presets = document.querySelectorAll('[data-preset]');
+    presets.forEach(b=> b.disabled = inRound);
+    const autoBtn = document.getElementById('bjAutoDeal');
+    if(autoBtn) autoBtn.disabled = false; // always allow toggling
+  }
+
+  function waitForRoundEnd(){
+    return new Promise(res=>{
+      const iv = setInterval(()=>{
+        if(!inRound && roundCleared){ clearInterval(iv); res(); }
+      }, 120);
+    });
   }
 
   async function startRound(){
     // validate bet
     const bet = parseInt(betEl.value || betEl.options[betEl.selectedIndex].value,10) || 0;
     if(bet <= 0 || bet > stats.credits){ alert('Invalid bet'); return; }
+    // mark that a new round is starting and table is not cleared
+    roundCleared = false;
     currentBet = bet; inRound = true; stats.credits -= bet; updateCreditsUI(); saveStats();
     updateControls(); setStatus('Dealing...');
     // prepare deck
@@ -175,21 +200,25 @@
     const p1 = deck.pop(); playerCards.push(p1);
     const el1 = createCardEl(p1);
     await animateDealTo(el1, playerHandEl, 50); placeCardInContainer(el1, playerHandEl);
+    updateHandValues();
     // dealer card 1 (visible)
     const d1 = deck.pop(); dealerCards.push(d1);
     const el2 = createCardEl(d1);
     await animateDealTo(el2, dealerHandEl, 120); placeCardInContainer(el2, dealerHandEl);
+    updateHandValues();
     // player card 2
     const p2 = deck.pop(); playerCards.push(p2);
     const el3 = createCardEl(p2);
     await animateDealTo(el3, playerHandEl, 200); placeCardInContainer(el3, playerHandEl);
-    // dealer hidden card (face-down)
+    updateHandValues();
+    // dealer hidden card (face-down) - use card back image
     const d2 = deck.pop(); dealerCards.push(d2);
-    const hidden = createCardEl({src: CARD_PATH + 'red_joker.png', rank:'hidden', suit:'',});
+    const hidden = createCardEl({src: CARD_PATH + 'card back black.png', rank:'hidden', suit:'',});
     // position to dealer
     await animateDealTo(hidden, dealerHandEl, 280);
     placeCardInContainer(hidden, dealerHandEl);
     dealerHiddenEl = hidden; // keep reference
+    updateHandValues();
 
     setStatus('Your move');
     // check instant blackjack
@@ -221,8 +250,23 @@
     setTimeout(()=>{
       dealerHiddenEl.src = face;
       dealerHiddenEl.style.transform = '';
+      updateHandValues();
     }, 360);
     dealerHiddenEl = null;
+  }
+
+  // Utility to update visible hand totals in the UI
+  function updateHandValues(){
+    try{
+      const pValEl = document.getElementById('bjPlayerVal');
+      const dValEl = document.getElementById('bjDealerVal');
+      if(pValEl) pValEl.textContent = (isNaN(handValue(playerCards))?0:handValue(playerCards));
+      if(dValEl){
+        // if dealer hidden card exists, show only visible card value
+        if(inRound && dealerCards.length>0 && dealerHiddenEl) dValEl.textContent = (isNaN(handValue([dealerCards[0]]))?0:handValue([dealerCards[0]])) + ' (visible)';
+        else dValEl.textContent = (isNaN(handValue(dealerCards))?0:handValue(dealerCards));
+      }
+    }catch(e){/* ignore */}
   }
 
   async function playerHit(){
@@ -230,6 +274,7 @@
     const card = deck.pop(); playerCards.push(card);
     const el = createCardEl(card);
     await animateDealTo(el, playerHandEl, 50); placeCardInContainer(el, playerHandEl);
+    updateHandValues();
     const val = handValue(playerCards);
     if(val > 21){ // bust
       revealDealerCard(); stats.losses++; stats.games++; saveStats(); setStatus('You busted — lose.'); inRound=false; updateControls();
@@ -250,6 +295,7 @@
       const card = deck.pop(); dealerCards.push(card);
       const el = createCardEl(card);
       await animateDealTo(el, dealerHandEl, 60); placeCardInContainer(el, dealerHandEl);
+      updateHandValues();
       dv = handValue(dealerCards);
     }
     // evaluate
@@ -270,6 +316,37 @@
   dealBtn && dealBtn.addEventListener('click', ()=>{ startRound().catch(e=>console.error(e)); });
   hitBtn && hitBtn.addEventListener('click', ()=> playerHit());
   standBtn && standBtn.addEventListener('click', ()=> playerStand());
+  // preset bet buttons
+  Array.from(document.querySelectorAll('[data-preset]')).forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const v = Number(b.dataset.preset) || 0; if(betEl) betEl.value = v;
+    });
+  });
+  // All-In
+  const allInBtn = document.getElementById('bjAllIn');
+  allInBtn && allInBtn.addEventListener('click', ()=>{
+    try{ if(betEl) betEl.value = Math.max(1, stats.credits); }catch(e){}
+  });
+
+  // Auto-Deal loop
+  const autoBtn = document.getElementById('bjAutoDeal');
+  autoBtn && autoBtn.addEventListener('click', async ()=>{
+    autoDealActive = !autoDealActive;
+    autoBtn.textContent = autoDealActive ? 'Stop Auto' : 'Auto-Deal';
+    if(autoDealActive){
+      // run consecutive rounds until stopped or credits exhausted
+      while(autoDealActive){
+        const bet = parseInt(betEl.value || 0,10) || 0;
+        if(bet <= 0 || bet > stats.credits){ autoDealActive = false; autoBtn.textContent='Auto-Deal'; break; }
+        try{
+          await startRound();
+          await waitForRoundEnd();
+          // small pause between rounds
+          await new Promise(r=>setTimeout(r, 600));
+        }catch(e){ console.error(e); autoDealActive=false; autoBtn.textContent='Auto-Deal'; }
+      }
+    }
+  });
   saveBtn && saveBtn.addEventListener('click', async ()=>{
     // Save score to Firestore if available (page already has Firestore code)
     try{ if(window.isNameBlocked && window.isNameBlocked(nameInput.value)){ alert('Name blocked'); return; } }catch(e){}
