@@ -22,6 +22,13 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Wallets: clients should not be able to write directly to wallets documents.
+    match /wallets/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // disallow client-side create/update/delete; only server (Admin SDK / Cloud Functions) should modify wallets
+      allow write: if false;
+    }
+
     // Fallback: deny everything else by default
     match /{document=**} {
       allow read: if false;

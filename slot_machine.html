@@ -93,11 +93,13 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import {
     getFirestore,
+    doc,
     collection,
     query,
     orderBy,
     limit,
-    onSnapshot
+    onSnapshot,
+    getDoc
   } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
   import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
@@ -142,6 +144,30 @@
   // Sign the user in anonymously so the callable function has an auth context.
   signInAnonymously(auth).catch(()=>{/* ignore sign-in failures; function will reject if unauthenticated */});
 
+  // Keep the UI in sync with the authoritative server wallet.
+  // Any manual edits in the inspector will be overwritten by the server value.
+  auth.onAuthStateChanged(async user => {
+    if(!user) return;
+    const uid = user.uid;
+    const walletRef = doc(db, 'wallets', uid);
+
+    // Optional: ensure wallet exists (server functions normally create/update it).
+    try{
+      const snap = await getDoc(walletRef);
+      // If it doesn't exist we don't create it here because rules may block client writes.
+    }catch(e){ /* ignore */ }
+
+    // Overwrite displayed credits whenever server value changes
+    onSnapshot(walletRef, snap => {
+      if(!snap.exists()) return;
+      const data = snap.data();
+      if(typeof data.credits === 'number'){
+        const el = document.getElementById('credits');
+        if(el) el.textContent = String(data.credits);
+      }
+    }, err => console.warn('wallet onSnapshot error', err));
+  });
+
   // SAVE SCORE (via callable cloud function)
   saveBtn.addEventListener("click", async () => {
     const name = nameInput.value.trim() || 'Player';
@@ -170,6 +196,70 @@
       alert('Failed to save score: ' + (err && err.message ? err.message : String(err)));
     }
   });
+  
+  // Override client spin handler to use server-resolved spins.
+  // Replace existing spin button to remove any previous listeners attached by `js/script.js`.
+  (function(){
+    const spinBtnOld = document.getElementById('spin');
+    if(!spinBtnOld) return;
+    const spinBtn = spinBtnOld.cloneNode(true);
+    spinBtnOld.parentNode.replaceChild(spinBtn, spinBtnOld);
+
+    // Map server indices to visuals using the icons exposed by the page script
+    const ICONS = window.LUCKY_ICONS || [
+      '<svg viewBox="0 0 64 64"><rect x="6" y="20" rx="8" width="52" height="24" fill="#fff7ec"/></svg>',
+      '<svg viewBox="0 0 64 64"><path d="M12 30h36v8a8 8 0 0 1-8 8H20a8 8 0 0 1-8-8z"/></svg>',
+      '<svg viewBox="0 0 64 64"><g transform="translate(32,20)"><circle cx="0" cy="0" r="8"/></g></svg>',
+      '<svg viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6"/></svg>',
+      '<svg viewBox="0 0 64 64"><ellipse cx="32" cy="32" rx="16" ry="20"/></svg>',
+      '<svg viewBox="0 0 64 64"><path d="M8 32c12 12 36 12 44 0-8-12-32-12-44 0z"/></svg>',
+      '<svg viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="8"/></svg>'
+    ];
+
+    const reelsEls = [document.getElementById('r0'), document.getElementById('r1'), document.getElementById('r2')];
+    const msgEl = document.getElementById('message');
+
+    spinBtn.addEventListener('click', async ()=>{
+      // read bet
+      let bet = 0;
+      try{ const cb = document.getElementById('customBet') && parseInt(document.getElementById('customBet').value,10); if(cb && cb>0) bet = cb; else bet = parseInt(document.getElementById('bet').value,10);}catch(e){ bet = parseInt(document.getElementById('bet').value,10);}      
+      if(!Number.isFinite(bet) || bet<=0){ alert('Invalid bet'); return; }
+      spinBtn.disabled = true; msgEl.textContent = 'Spinning (server)...';
+      try{
+        const placeSpin = httpsCallable(functions, 'placeBetAndSpin');
+        const res = await placeSpin({ bet });
+        const data = res.data || res;
+        // animate quick spin then reveal server indices
+        const finals = (data.indices && Array.isArray(data.indices)) ? data.indices : [0,1,2];
+        // simple animation: cycle icons briefly then set finals staggered
+        const intervals = [];
+        for(let i=0;i<3;i++){
+          intervals[i] = setInterval(()=>{ reelsEls[i].innerHTML = ICONS[Math.floor(Math.random()*ICONS.length)]; }, 60 + i*20);
+        }
+        const stops = [900,1200,1500];
+        stops.forEach((t,i)=> setTimeout(()=>{
+          clearInterval(intervals[i]);
+          reelsEls[i].innerHTML = ICONS[ finals[i] % ICONS.length ];
+          if(i===2){
+            // finished
+            const type = data.type || 'lose';
+            const payout = data.payout || 0;
+            const newCredits = (typeof data.newCredits !== 'undefined') ? data.newCredits : null;
+            if(type === 'jackpot') msgEl.textContent = `JACKPOT! You won ${payout} credits!`;
+            else if(type === 'pair') msgEl.textContent = `Nice! Pair pays ${payout} credits.`;
+            else msgEl.textContent = 'No win — try again!';
+            if(newCredits !== null) document.getElementById('credits').textContent = String(newCredits);
+            spinBtn.disabled = false;
+          }
+        }, t), 0);
+
+      }catch(err){
+        console.error('Spin error', err);
+        alert('Spin failed: ' + (err && err.message ? err.message : String(err)));
+        spinBtn.disabled = false; msgEl.textContent = 'Spin failed.';
+      }
+    });
+  })();
 </script>
 
 

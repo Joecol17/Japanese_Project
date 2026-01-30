@@ -326,113 +326,20 @@
   }
 
   function spin(){
-    if(spinning) return;
-    // prefer a custom bet value if provided, otherwise use the select
-    let bet = 0;
+    // Delegate to the server-backed spin button so outcomes and balance updates
+    // are always produced and recorded by the server.
     try{
-      const cb = customBetInput && parseInt(customBetInput.value,10);
-      if(cb && cb > 0) bet = cb;
-      else bet = parseInt(betEl.value,10);
-    }catch(e){ bet = parseInt(betEl.value,10); }
-    if(!Number.isFinite(bet) || bet <=0 || bet > credits){ setMessage('Invalid bet or insufficient credits',''); return; }
-
-    spinning = true; spinBtn.disabled = true; setMessage('Spinning...');
-
-    // simple animation: rapidly change icons then stop one by one
-    const intervals = [];
-
-    // Determine final result ahead of time. If user has made a payment
-    // (flag stored in localStorage.stripePaid === '1'), guarantee at least a pair.
-    const paidFlag = (function(){ try{ return localStorage.getItem('stripePaid') === '1'; }catch(e){return false;} })();
-    const final = [null,null,null];
-
-    if(paidFlag){
-      // Decide whether to give a jackpot (all three same) or only a pair.
-      const jackpotChance = 0.12; // ~12% chance of full jackpot
-      if(Math.random() < jackpotChance){
-        const pick = icons[rand(icons.length)];
-        final[0]=final[1]=final[2]=pick;
-      } else {
-        // Guarantee exactly one pair at minimum: pick base icon and indices
-        const base = icons[rand(icons.length)];
-        // choose which two positions will match
-        const pairPositions = [[0,1],[1,2],[0,2]][rand(3)];
-        final[pairPositions[0]] = base;
-        final[pairPositions[1]] = base;
-        // the remaining position should be different
-        const remainingIdx = [0,1,2].filter(x=>!pairPositions.includes(x))[0];
-        // pick a different icon
-        let other;
-        do { other = icons[rand(icons.length)]; } while(other === base && icons.length>1);
-        final[remainingIdx] = other;
-      }
-    } else {
-      // fully random finals
-      for(let i=0;i<3;i++) final[i] = icons[rand(icons.length)];
-    }
-
-    for(let i=0;i<3;i++){
-      intervals[i] = setInterval(()=>{
-        reels[i].innerHTML = icons[rand(icons.length)];
-      }, 80 + i*20);
-    }
-
-    // stop reels with stagger
-    const stops = [1100,1500,1800];
-    stops.forEach((t,i)=>{
-      setTimeout(()=>{
-        clearInterval(intervals[i]);
-        // set the precomputed final HTML for this reel
-        reels[i].innerHTML = final[i];
-        // when last stopped evaluate
-        if(i===2){
-          const result = evaluate(final);
-          if(result.type==='jackpot'){
-            const amount = bet * result.mult;
-            credits += amount;
-            setMessage(`JACKPOT! You won ${amount} credits!`,'win');
-            flashWin([0,1,2]);
-            // machine glow + particles
-            if(machineEl) machineEl.classList.add('big-win');
-            spawnConfetti(40);
-            spawnPetals(40);
-            spawnGoldBurst(36);
-            setTimeout(()=>{ if(machineEl) machineEl.classList.remove('big-win'); }, 1600);
-          } else if(result.type==='pair'){
-            const amount = bet * result.mult;
-            credits += amount;
-            setMessage(`Nice! Pair pays ${amount} credits.`,'win');
-            // highlight the matching reels
-            const idxs = [];
-            if(final[0]===final[1]) idxs.push(0,1);
-            else if(final[1]===final[2]) idxs.push(1,2);
-            else idxs.push(0,2);
-            flashWin(idxs);
-            if(machineEl) machineEl.classList.add('big-win');
-            spawnConfetti(18);
-            spawnPetals(18);
-            spawnGoldBurst(16);
-            setTimeout(()=>{ if(machineEl) machineEl.classList.remove('big-win'); }, 1200);
-          } else {
-            credits -= bet;
-            setMessage('No win — try again!','');
-          }
-          updateCredits();
-          checkCreditsForRebuy();
-          // auto-suggest saving when you have a high score: if current credits > top leaderboard score, hint user
-          try{
-            const lb = loadLeaderboard();
-            const top = lb.length ? lb[0].score : -1;
-            if(credits > top){ setMessage(msgEl.textContent + ' New high score — save it!','win'); }
-          }catch(e){}
-          spinning = false; spinBtn.disabled = false;
-        }
-      }, t);
-    });
+      const serverSpinBtn = document.getElementById('spin');
+      if(serverSpinBtn){ serverSpinBtn.click(); return; }
+    }catch(e){}
+    console.warn('Server spin button not available');
   }
 
   // initial reel render (random icons)
   for(let i=0;i<3;i++) reels[i].innerHTML = icons[rand(icons.length)];
+
+  // Expose icons for other modules that need to render server-determined outcomes
+  try{ window.LUCKY_ICONS = icons; }catch(e){}
 
   spinBtn.addEventListener('click', spin);
   // All-In button: set custom bet to current credits then spin
