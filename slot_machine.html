@@ -195,6 +195,31 @@
     }catch(e){ /* allow save on blocker error */ }
 
     try{
+      // LOCAL PROFANITY CHECK (if available)
+      try{
+        if(window.isNameBlocked && window.isNameBlocked(name)){
+          alert('Name contains inappropriate language — please choose another.');
+          return;
+        }
+      }catch(e){ /* ignore blocker errors */ }
+
+      // REMOTE PROFANITY CHECK + BACKUP
+      try{
+        const pvRes = await fetch('https://vector.profanity.dev', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: name })
+        });
+        if(pvRes && pvRes.ok){
+          const pvJson = await pvRes.json().catch(()=>null);
+          const flagged = pvJson && (pvJson.blocked || pvJson.flagged || pvJson.profanity || pvJson.bad || (typeof pvJson.score === 'number' && pvJson.score > 0.5));
+          if(flagged){
+            alert('Name contains inappropriate language — please choose another.');
+            return;
+          }
+        }
+      }catch(e){ /* network/profanity service error — proceed conservatively */ }
+
       const res = await fetch(saveEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -212,6 +237,18 @@
         throw new Error(text || 'Save failed');
       }
       const data = await res.json();
+
+      // Fire-and-forget backup log to profanity/backup endpoint with saved metadata
+      (async function(){
+        try{
+          await fetch('https://vector.profanity.dev', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: name, saved: true, recordedScore: data && data.score ? data.score : score })
+          });
+        }catch(e){ /* ignore backup errors */ }
+      })();
+
       alert('Score saved (server recorded score: ' + (data && data.score) + ')');
       nameInput.value = '';
     }catch(err){
