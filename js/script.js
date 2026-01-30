@@ -543,15 +543,41 @@
   });
 
   promo.addEventListener('click', (e)=>{
-    // open in managed popup so we can detect close and optionally get postMessage
+    // open in managed popup and POST uid to create session server-side
     e.preventDefault();
-    const url = promo.href;
-    const popup = window.open(url, 'stripeCheckout', 'width=980,height=720');
+    const endpoint = promo.href || '/.netlify/functions/create-checkout-session';
+    // open a blank popup first so browsers don't block the navigation
+    const popup = window.open('about:blank', 'stripeCheckout', 'width=980,height=720');
     if(!popup){
       // popup blocked — fallback to normal navigation
-      window.location.href = url; return;
+      window.location.href = endpoint; return;
     }
     createToast('payment-wait','Waiting for payment to complete...');
+
+    // attempt to POST current user's uid so the Checkout session can include it in metadata
+    (async ()=>{
+      try{
+        const uid = (auth && auth.currentUser && auth.currentUser.uid) ? auth.currentUser.uid : null;
+        const resp = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid })
+        });
+        if(resp && resp.ok){
+          const json = await resp.json().catch(()=>null);
+          const redirect = json && json.url;
+          if(redirect){
+            // navigate popup to Stripe Checkout
+            try{ popup.location.href = redirect; }catch(e){ window.location.href = redirect; }
+            return;
+          }
+        }
+      }catch(err){
+        console.warn('create-checkout-session POST failed', err);
+      }
+      // fallback: navigate popup to endpoint (which will perform GET redirect)
+      try{ popup.location.href = endpoint; }catch(e){ window.location.href = endpoint; }
+    })();
 
     const watcher = setInterval(()=>{
       try{

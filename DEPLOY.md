@@ -41,4 +41,12 @@ firebase deploy --only functions,firestore:rules --project YOUR_PROJECT_ID
 - `STRIPE_SUCCESS_URL`: full URL to your `success.html` (optional; defaults to `/success.html`)
 - `SITE_URL`: optional base URL for redirects (e.g. `https://your-site.example`)
 
+9) Stripe webhook & Firebase service account (Netlify environment variables):
+
+- `STRIPE_WEBHOOK_SECRET`: the webhook signing secret from your Stripe dashboard (used to verify incoming webhooks).
+- `FIREBASE_SERVICE_ACCOUNT`: JSON string of a Firebase service account key (set this in Netlify as a secret). Example value is the JSON blob from Google Cloud service account credentials. The webhook uses this to update Firestore wallets when checkout succeeds.
+- `STRIPE_CREDIT_AMOUNT`: optional number of in-app credits to grant per successful purchase (default `1000`).
+
+Important: keep `FIREBASE_SERVICE_ACCOUNT` and `STRIPE_SECRET_KEY` private. In Netlify, add them under Site → Settings → Build & deploy → Environment → Environment variables.
+
 When deploying to Netlify, add those env vars in the Netlify site settings (or set them in your CI environment). Example local test with `netlify dev` or similar should set these env vars before invoking functions.

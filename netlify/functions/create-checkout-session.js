@@ -22,18 +22,36 @@ exports.handler = async function(event) {
   }
 
   try {
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams = {
       mode: 'payment',
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: successUrl,
       cancel_url: cancelUrl
-    });
+    };
 
-    // Redirect the client to Stripe Checkout
+    // Allow passing metadata (e.g. uid) from client to attach to the Checkout session
+    if (body && body.uid) {
+      sessionParams.metadata = Object.assign({}, body.metadata || {}, { uid: String(body.uid) });
+    } else if (body && body.metadata) {
+      sessionParams.metadata = body.metadata;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+
+    // If called via GET (popup href) redirect immediately
+    if (event.httpMethod === 'GET') {
+      return {
+        statusCode: 302,
+        headers: { Location: session.url }
+      };
+    }
+
+    // If called via POST (fetch from client), return the session URL as JSON
     return {
-      statusCode: 302,
-      headers: { Location: session.url }
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: session.url })
     };
   } catch (err) {
     console.error('create-checkout-session error', err);
