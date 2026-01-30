@@ -18,7 +18,7 @@
   const nameInput = document.getElementById('bjName');
   const dealerHandEl = document.getElementById('dealerHand');
   const playerHandEl = document.getElementById('playerHand');
-  const statusEl = document.getElementById('bjStatus') || (function(){ const d=document.createElement('div'); d.id='bjStatus'; playerHandEl.parentNode.insertBefore(d, playerHandEl); return d; })();
+  const statusEl = document.getElementById('bjStatus') || (function(){ const d=document.createElement('div'); d.id='bjStatus'; if(playerHandEl && playerHandEl.parentNode){ playerHandEl.parentNode.insertBefore(d, playerHandEl); } return d; })();
 
   // Stats and persistence
   let stats = { credits: 1000, wins:0, losses:0, games:0 };
@@ -33,6 +33,18 @@
     try{ localStorage.setItem(STATS_KEY, JSON.stringify(stats)); }catch(e){ console.warn('saveStats',e); }
   }
   function updateCreditsUI(){ creditsEl.textContent = stats.credits; }
+
+  // Expose a read-only getter so other scripts (e.g. save handlers) don't rely on DOM text
+  try{
+    window.getBlackjackCredits = function(){ return stats.credits; };
+    window.getBlackjackRoundsPlayed = function(){ return Math.max(1, stats.games || 0); };
+    window.getBlackjackMaxBet = function(){
+      try{
+        const v = parseInt(betEl && betEl.value ? betEl.value : '0', 10);
+        return Number.isFinite(v) && v > 0 ? v : 1;
+      }catch(e){ return 1; }
+    };
+  }catch(e){ /* ignore */ }
 
   // Deck factory
   function buildDeck(){
@@ -78,6 +90,23 @@
   deckAnchor.style.position='fixed'; deckAnchor.style.right='20px'; deckAnchor.style.top='120px'; deckAnchor.style.width='48px'; deckAnchor.style.height='64px';
   deckAnchor.style.pointerEvents='none'; document.body.appendChild(deckAnchor);
 
+  // Win popup
+  const winPopup = document.getElementById('bjWinPopup');
+  const winMessage = document.getElementById('bjWinMessage');
+  const winClose = document.getElementById('bjWinClose');
+  function showWinPopup(text){
+    if(!winPopup) return;
+    if(winMessage) winMessage.textContent = text || 'Nice hand!';
+    winPopup.classList.add('show');
+    winPopup.setAttribute('aria-hidden','false');
+  }
+  function hideWinPopup(){
+    if(!winPopup) return;
+    winPopup.classList.remove('show');
+    winPopup.setAttribute('aria-hidden','true');
+  }
+  winClose && winClose.addEventListener('click', hideWinPopup);
+
   function createCardEl(card){
     const img = document.createElement('img');
     img.src = card.src; img.className = 'bj-card';
@@ -98,11 +127,14 @@
     // compute destination point (stacking inside container)
     const destX = targetRect.left + 20 + (targetContainer.children.length * 28);
     const destY = targetRect.top + 8;
+    // add a small random rotate for a more natural deal
+    const angle = (Math.random() * 8 - 4).toFixed(2);
+    el.classList.add('dealing');
     requestAnimationFrame(()=>{
       el.style.transitionDelay = delay + 'ms';
-      el.style.transform = `translate(${destX - startX}px, ${destY - startY}px) scale(1)`;
+      el.style.transform = `translate(${destX - startX}px, ${destY - startY}px) rotate(${angle}deg) scale(1)`;
     });
-    return new Promise(res=> setTimeout(res, 420 + delay));
+    return new Promise(res=> setTimeout(()=>{ el.classList.remove('dealing'); res(); }, 420 + delay));
   }
 
   function placeCardInContainer(el, container){
@@ -128,7 +160,8 @@
 
   // Game state
   let deck = [];
-  let dealerCards = []; let playerCards = [];
+  let dealerCards = [];
+  let playerCards = [];
   let dealerHiddenEl = null; // DOM element for hidden card
   let inRound = false; let currentBet = 0;
   let autoDealActive = false;
@@ -154,7 +187,8 @@
     }
     dealerCards = []; playerCards = [];
     // ensure containers cleared immediately so layout doesn't hold old nodes
-    dealerHandEl.innerHTML = ''; playerHandEl.innerHTML = '';
+    dealerHandEl.innerHTML = '';
+    if(playerHandEl) playerHandEl.innerHTML = '';
     dealerHiddenEl = null;
     updateControls();
     setStatus('Place your bet and deal.');
@@ -232,6 +266,7 @@
       } else { // player blackjack pays 3:2
         const payout = Math.floor(currentBet * 1.5);
         stats.credits += currentBet + payout; stats.wins++; setStatus('Blackjack! You win.');
+        showWinPopup(`Blackjack! +${currentBet + payout} chips`);
       }
       stats.games++; saveStats(); updateCreditsUI(); inRound=false; updateControls();
       // Let the player see the result briefly then clear the table
@@ -243,15 +278,26 @@
   function revealDealerCard(){
     if(!dealerHiddenEl) return;
     // flip animation: swap image to actual face
-    const face = dealerCards[1].src;
-    // simple flip using scaleX
-    dealerHiddenEl.style.transition = 'transform 360ms ease';
-    dealerHiddenEl.style.transform = 'scaleX(0)';
-    setTimeout(()=>{
-      dealerHiddenEl.src = face;
-      dealerHiddenEl.style.transform = '';
+    const face = dealerCards[1] && dealerCards[1].src;
+    if(!face) return;
+    dealerHiddenEl.style.opacity = '1';
+    // use CSS class flip + swap on transition end
+    const el = dealerHiddenEl;
+    let swapped = false;
+    const onDone = () => {
+      if(swapped) return;
+      swapped = true;
+      el.src = face;
+      el.classList.remove('bj-flip');
       updateHandValues();
-    }, 360);
+    };
+    el.addEventListener('transitionend', function once(){
+      el.removeEventListener('transitionend', once);
+      onDone();
+    });
+    el.classList.add('bj-flip');
+    // fallback in case transitionend doesn't fire
+    setTimeout(onDone, 300);
     dealerHiddenEl = null;
   }
 
@@ -288,7 +334,7 @@
   async function playerStand(){
     if(!inRound) return;
     revealDealerCard(); // show hidden
-    // Dealer hits until 17
+    revealDealerCard();
     let dv = handValue(dealerCards);
     while(dv < 17){
       await new Promise(r=>setTimeout(r,420));
@@ -304,6 +350,7 @@
     if(finalDv > 21 || pv > finalDv){ // player wins
       // check blackjack payout already handled earlier
       stats.credits += currentBet * 2; stats.wins++; setStatus('You win!');
+      showWinPopup(`You win! +${currentBet * 2} chips`);
     } else if(pv === finalDv){ // push
       stats.credits += currentBet; setStatus('Push (tie)');
     } else { stats.losses++; setStatus('Dealer wins.'); }

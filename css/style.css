@@ -177,13 +177,40 @@ footer{margin-top:24px;text-align:center;color:var(--muted)}
 .promo-anchor{display:none !important}
 
 /* Blackjack specific layout and card styles */
-.blackjack-area{width:100%;max-width:720px;margin:14px auto;padding:12px;background:linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,250,250,0.98));border-radius:12px;border:1px solid rgba(183,28,28,0.06);box-shadow:0 12px 36px rgba(0,0,0,0.04)}
+.bj-casino{max-width:1320px;margin:18px auto;padding:16px 18px}
+.bj-casino::before{content:"";position:fixed;inset:0;background:radial-gradient(circle at 20% 20%, rgba(183,28,28,0.28), transparent 55%),radial-gradient(circle at 80% 10%, rgba(255,214,102,0.2), transparent 50%),#0b0b10;z-index:-1}
+.bj-hero{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;color:#fff}
+.bj-hero h1{margin:0;font-size:32px;letter-spacing:0.5px}
+.bj-hero p{margin:6px 0 0;color:rgba(255,255,255,0.7)}
+.bj-hero-badge{background:linear-gradient(135deg,#ff4d6d,#ffba08);color:#1b1b1b;padding:8px 12px;border-radius:999px;font-weight:900;box-shadow:0 12px 30px rgba(0,0,0,0.25)}
+
+.blackjack-area{width:100%;max-width:1320px;margin:14px auto;padding:18px;background:linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.55)), url("../images/pngaaa.com-2133772.png") center/155% no-repeat;border-radius:26px;border:2px solid rgba(255,255,255,0.12);box-shadow:0 28px 80px rgba(0,0,0,0.45), inset 0 0 0 2px rgba(255,255,255,0.06)}
 .bj-table{display:flex;flex-direction:column;gap:12px}
+.bj-topbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:rgba(0,0,0,0.35);padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,0.1)}
+.bj-inputs{display:flex;gap:10px;align-items:center;color:#fff;font-weight:800}
+.bj-inputs label{display:flex;flex-direction:column;gap:6px;font-size:12px;text-transform:uppercase;letter-spacing:0.4px}
+.bj-inputs input,.bj-inputs select{width:110px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.9);color:#111}
+.bj-presets,.bj-actions{display:flex;gap:6px;flex-wrap:wrap}
+.bj-status{margin-top:10px;color:#ffd166;font-weight:800;background:rgba(0,0,0,0.35);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.1)}
+
+.bj-table-layout{display:grid;grid-template-columns:2fr 2fr 1.1fr;gap:12px}
+.bj-dealer,.bj-player{background:rgba(0,0,0,0.18);border-radius:14px;padding:10px;border:1px solid rgba(255,255,255,0.08)}
+.bj-dealer h3,.bj-player h3{margin:4px 0 8px;color:#ffeec2}
+.bj-side{display:flex;flex-direction:column;gap:12px}
+.bj-save{background:rgba(0,0,0,0.3);border-radius:12px;padding:10px;border:1px solid rgba(255,255,255,0.08);color:#fff}
+.bj-save label{display:flex;flex-direction:column;gap:6px;font-size:12px;text-transform:uppercase;letter-spacing:0.4px}
+.bj-save input{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.95)}
 .bj-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.bj-hand{min-height:140px;padding:8px;border-radius:10px;background:linear-gradient(180deg,#fff,#fff7f6);border:1px solid rgba(183,28,28,0.04);display:flex;align-items:flex-start;position:relative;overflow:visible}
+.bj-hand{min-height:140px;padding:6px;border-radius:12px;background:transparent;border:none;display:flex;align-items:flex-start;position:relative;overflow:visible}
+.bj-player{grid-column:1 / span 2}
+.bj-hand-title{font-weight:800;color:#ffeec2;margin-bottom:6px}
+.bj-hand-slot.active{outline:2px solid rgba(255,214,102,0.9);box-shadow:0 0 0 3px rgba(255,214,102,0.35)}
 .bj-hand .bj-card{width:84px;height:116px;border-radius:8px;box-shadow:0 10px 28px rgba(0,0,0,0.12);transition:transform .28s ease,opacity .22s ease;margin-left:-56px}
 .bj-hand .bj-card:first-child{margin-left:0}
 .bj-card{will-change:transform,opacity}
+
+/* Slight deal flourish */
+.bj-card.dealing{filter:drop-shadow(0 16px 24px rgba(0,0,0,0.25))}
 
 /* small flip helper used by JS (scaleX trick) */
 .bj-flip{transition:transform 260ms ease;transform:scaleX(0)}
@@ -197,5 +224,18 @@ footer{margin-top:24px;text-align:center;color:var(--muted)}
 /* Polished leave/home button for Blackjack page */
 .leave-button{display:inline-block;padding:8px 12px;border-radius:999px;background:linear-gradient(180deg,var(--accent),var(--accent2));color:#fff;font-weight:800;text-decoration:none;border:0;box-shadow:0 8px 20px rgba(183,28,28,0.16)}
 .leave-button.secondary{background:#fff;border:1px solid rgba(183,28,28,0.08);color:var(--accent);box-shadow:none}
+
+@media (max-width:980px){
+  .bj-table-layout{grid-template-columns:1fr}
+  .bj-hero{flex-direction:column;align-items:flex-start;gap:8px}
+}
+
+/* Win popup */
+.bj-win-popup{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:9999}
+.bj-win-popup.show{opacity:1;pointer-events:auto}
+.bj-win-card{background:#ffffff;border-radius:16px;padding:18px 20px;min-width:260px;box-shadow:0 18px 40px rgba(0,0,0,0.28);text-align:center;transform:translateY(6px) scale(0.98);transition:transform .2s ease}
+.bj-win-popup.show .bj-win-card{transform:translateY(0) scale(1)}
+.bj-win-title{font-size:20px;font-weight:900;color:#b71c1c;margin-bottom:6px}
+.bj-win-message{color:#333;margin-bottom:12px}
 
 

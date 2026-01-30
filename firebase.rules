@@ -2,24 +2,20 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Blackjack scores: allow public reads, but restrict writes so clients
-    // cannot spoof server timestamps or arbitrarily large scores.
+    // Blackjack scores: allow public reads; writes must go through server.
     match /blackjack_scores/{docId} {
       allow read: if true;
 
-      // Allow create only if the client is authenticated and fields are valid
-      allow create: if request.auth != null
-        && request.resource.data.name is string
-        && request.resource.data.name.size() > 0
-        && request.resource.data.name.size() <= 20
-        && request.resource.data.score is number
-        && request.resource.data.score >= 0
-        && request.resource.data.score <= 1000000
-        // createdAt must be the server timestamp (request.time) so clients can't forge it
-        && request.resource.data.createdAt == request.time;
+      // Disallow all client writes (use Admin SDK in Cloud Functions)
+      allow write: if false;
+    }
 
-      // Disallow updates/deletes from clients (scores are append-only)
-      allow update, delete: if false;
+    // Slot machine scores: allow public reads; writes must go through server.
+    match /scores/{docId} {
+      allow read: if true;
+
+      // Disallow all client writes (use server-side endpoint)
+      allow write: if false;
     }
 
     // Wallets: clients should not be able to write directly to wallets documents.
