@@ -203,17 +203,25 @@ export default {
           body: JSON.stringify(firestoreBody)
         });
 
+        const resText = await res.text();
+        
         if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`Firestore error: ${text}`);
+          console.error(`Firebase ${res.status}: ${resText}`);
+          throw new Error(`Firestore error: ${resText}`);
         }
 
-        const saved = await res.json();
-        return jsonResponse(200, { id: saved.name, score }, {}, allowedOrigin);
-      } catch (firebaseErr) {
-        console.error('Firebase error:', firebaseErr);
-        // Return success anyway - score was validated server-side
+        // Try to parse response, but don't fail if it's not JSON
+        let saved = {};
+        try {
+          saved = JSON.parse(resText);
+        } catch (e) {
+          console.warn('Could not parse Firestore response as JSON:', resText);
+        }
+        
         return jsonResponse(200, { success: true, score, name }, {}, allowedOrigin);
+      } catch (firebaseErr) {
+        console.error('Firebase error:', firebaseErr.message || firebaseErr);
+        return jsonResponse(500, { error: 'Firebase: ' + (firebaseErr.message || String(firebaseErr)) }, {}, allowedOrigin);
       }
     } catch (err) {
       console.error('Worker error:', err);
