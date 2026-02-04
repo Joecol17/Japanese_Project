@@ -36,7 +36,9 @@ function getAllowedOrigin(origin, env) {
   const raw = (env && env.ALLOWED_ORIGINS) ? env.ALLOWED_ORIGINS : '';
   const allowed = raw.split(',').map(s => s.trim()).filter(Boolean);
   if (allowed.includes('*')) return origin;
-  return allowed.includes(origin) ? origin : null;
+  // Check if origin is in the allowed list
+  if (allowed.includes(origin)) return origin;
+  return null;
 }
 
 async function enforceRateLimit(env, request, origin) {
@@ -132,11 +134,9 @@ export default {
   async fetch(request, env) {
     try {
       const origin = request.headers.get('Origin');
-      const allowedOrigin = getAllowedOrigin(origin, env);
-      if (origin && !allowedOrigin) {
-        return jsonResponse(403, { error: 'Origin not allowed' }, {}, null);
-      }
-
+      // For now, allow all origins and add CORS headers
+      const allowedOrigin = origin || '*';
+      
       if (request.method === 'OPTIONS') {
         return new Response(null, {
           status: 204,
@@ -210,7 +210,7 @@ export default {
       return jsonResponse(200, { id: saved.name, score }, {}, allowedOrigin);
     } catch (err) {
       console.error('Worker error:', err);
-      return jsonResponse(500, { error: err.message || 'Server error' }, {}, null);
+      return jsonResponse(500, { error: err.message || 'Server error' }, {}, allowedOrigin);
     }
   }
 };
