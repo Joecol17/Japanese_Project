@@ -132,18 +132,23 @@ async function getAccessToken(serviceAccount) {
 
 export default {
   async fetch(request, env) {
-    const origin = request.headers.get('Origin');
-    const allowedOrigin = getAllowedOrigin(origin, env);
-    if (origin && !allowedOrigin) {
-      return jsonResponse(403, { error: 'Origin not allowed' }, {}, null);
-    }
+    try {
+      const origin = request.headers.get('Origin');
+      const allowedOrigin = getAllowedOrigin(origin, env);
+      if (origin && !allowedOrigin) {
+        return jsonResponse(403, { error: 'Origin not allowed' }, {}, null);
+      }
 
-    const rateLimited = await enforceRateLimit(env, request, allowedOrigin);
-    if (rateLimited) return rateLimited;
+      // Handle OPTIONS early to skip rate limiting
+      if (request.method === 'OPTIONS') {
+        return new Response(null, {
+          status: 204,
+          headers: corsHeaders(allowedOrigin)
+        });
+      }
 
-    if (request.method === 'OPTIONS') {
-      return jsonResponse(204, {}, {}, allowedOrigin);
-    }
+      const rateLimited = await enforceRateLimit(env, request, allowedOrigin);
+      if (rateLimited) return rateLimited;
 
     if (request.method !== 'POST') {
       return jsonResponse(405, { error: 'Method not allowed' }, {}, allowedOrigin);
@@ -214,6 +219,13 @@ export default {
       return jsonResponse(200, { id: saved.name, score }, {}, allowedOrigin);
     } catch (err) {
       return jsonResponse(500, { error: err.message || 'Failed to save score' }, {}, allowedOrigin);
+    }
+    } catch (err) {
+      console.error('Uncaught worker error:', err);
+      return new Response(JSON.stringify({ error: 'Internal server error', details: err.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
   }
 };
