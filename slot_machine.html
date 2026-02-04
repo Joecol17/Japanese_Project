@@ -260,14 +260,21 @@
       let bet = 0;
       try{ const cb = document.getElementById('customBet') && parseInt(document.getElementById('customBet').value,10); if(cb && cb>0) bet = cb; else bet = parseInt(document.getElementById('bet').value,10);}catch(e){ bet = parseInt(document.getElementById('bet').value,10);}      
       if(!Number.isFinite(bet) || bet<=0){ alert('Invalid bet'); return; }
-      spinBtn.disabled = true; msgEl.textContent = 'Spinning (server)...';
+      
+      const credits = Number(document.getElementById('credits').textContent);
+      if(credits < bet){ alert('Not enough credits'); return; }
+      
+      spinBtn.disabled = true; msgEl.textContent = 'Spinning...';
       try{
-        const placeSpin = httpsCallable(functions, 'placeBetAndSpin');
-        const res = await placeSpin({ bet });
-        const data = res.data || res;
-        // animate quick spin then reveal server indices
-        const finals = (data.indices && Array.isArray(data.indices)) ? data.indices : [0,1,2];
-        // simple animation: cycle icons briefly then set finals staggered
+        // Client-side spinning (no server call needed)
+        // Generate random reel indices
+        const finals = [Math.floor(Math.random() * ICONS.length), Math.floor(Math.random() * ICONS.length), Math.floor(Math.random() * ICONS.length)];
+        
+        // Determine win type
+        const type = finals[0] === finals[1] && finals[1] === finals[2] ? 'jackpot' : (finals[0] === finals[1] || finals[1] === finals[2] ? 'pair' : 'lose');
+        const payout = type === 'jackpot' ? bet * 10 : (type === 'pair' ? bet * 2 : 0);
+        
+        // Animate spinning
         const intervals = [];
         for(let i=0;i<3;i++){
           intervals[i] = setInterval(()=>{ reelsEls[i].innerHTML = ICONS[Math.floor(Math.random()*ICONS.length)]; }, 60 + i*20);
@@ -278,13 +285,11 @@
           reelsEls[i].innerHTML = ICONS[ finals[i] % ICONS.length ];
           if(i===2){
             // finished
-            const type = data.type || 'lose';
-            const payout = data.payout || 0;
-            const newCredits = (typeof data.newCredits !== 'undefined') ? data.newCredits : null;
+            const newCredits = credits - bet + payout;
             if(type === 'jackpot') msgEl.textContent = `JACKPOT! You won ${payout} credits!`;
             else if(type === 'pair') msgEl.textContent = `Nice! Pair pays ${payout} credits.`;
             else msgEl.textContent = 'No win — try again!';
-            if(newCredits !== null) document.getElementById('credits').textContent = String(newCredits);
+            document.getElementById('credits').textContent = String(newCredits);
             spinBtn.disabled = false;
           }
         }, t), 0);

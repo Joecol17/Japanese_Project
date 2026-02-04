@@ -1,7 +1,6 @@
-const MAX_SCORE = 5000000; // absolute server safety cap (still higher than game-derived max)
+const MAX_SCORE = 5000000;
 const ALLOWED_COLLECTIONS = new Set(['pachinko_scores', 'scores']);
 
-// Per-game server limits (do not trust client-provided values)
 const GAME_LIMITS = {
   pachinko_scores: { MAX_BET: 100, MAX_MULTIPLIER: 10, MAX_ROUNDS: 10000 },
   scores: { MAX_BET: 5000, MAX_MULTIPLIER: 10, MAX_ROUNDS: 20000 }
@@ -40,9 +39,8 @@ function getAllowedOrigin(origin, env) {
   return allowed.includes(origin) ? origin : null;
 }
 
-// Simple IP-based rate limiting using KV (20 requests per minute)
 async function enforceRateLimit(env, request, origin) {
-  if (!env || !env.RATE_LIMIT) return null; // If KV not bound, skip rate limiting
+  if (!env || !env.RATE_LIMIT) return null;
 
   const ip = request.headers.get('CF-Connecting-IP')
     || (request.headers.get('x-forwarded-for') || '').split(',')[0].trim()
@@ -139,7 +137,6 @@ export default {
         return jsonResponse(403, { error: 'Origin not allowed' }, {}, null);
       }
 
-      // Handle OPTIONS early to skip rate limiting
       if (request.method === 'OPTIONS') {
         return new Response(null, {
           status: 204,
@@ -150,11 +147,10 @@ export default {
       const rateLimited = await enforceRateLimit(env, request, allowedOrigin);
       if (rateLimited) return rateLimited;
 
-    if (request.method !== 'POST') {
-      return jsonResponse(405, { error: 'Method not allowed' }, {}, allowedOrigin);
-    }
+      if (request.method !== 'POST') {
+        return jsonResponse(405, { error: 'Method not allowed' }, {}, allowedOrigin);
+      }
 
-    try {
       const {
         name: rawName = 'Player',
         score: rawScore = 0,
@@ -163,33 +159,28 @@ export default {
         maxMultiplier: rawMaxMultiplier,
         roundsPlayed: rawRounds
       } = await request.json();
+      
       const name = String(rawName).trim().slice(0, 20) || 'Player';
       const clientScore = Number(rawScore || 0);
-      const collection = ALLOWED_COLLECTIONS.has(rawCollection) ? rawCollection : 'blackjack_scores';
+      const collection = ALLOWED_COLLECTIONS.has(rawCollection) ? rawCollection : 'scores';
 
       if (!Number.isFinite(clientScore) || clientScore < 0) {
         return jsonResponse(400, { error: 'Invalid score' }, {}, allowedOrigin);
       }
 
-      const limits = GAME_LIMITS[collection] || GAME_LIMITS.blackjack_scores;
-
-      // Clamp untrusted client values to server-defined limits
+      const limits = GAME_LIMITS[collection] || GAME_LIMITS.scores;
       const maxBet = clampInt(rawMaxBet, 1, limits.MAX_BET);
       const maxMultiplier = clampInt(rawMaxMultiplier, 1, limits.MAX_MULTIPLIER);
       const roundsPlayed = clampInt(rawRounds, 1, limits.MAX_ROUNDS);
-
-      // Compute theoretical maximum possible score from game mechanics
       const maxPossibleScore = maxBet * maxMultiplier * roundsPlayed;
-
       const score = Math.min(MAX_SCORE, Math.floor(clientScore));
 
-      // Reject any score that exceeds what is mathematically possible
       if (score > maxPossibleScore) {
         return jsonResponse(422, { error: 'Score exceeds maximum possible' }, {}, allowedOrigin);
       }
+
       const serviceAccount = parseServiceAccount(env.FIREBASE_SERVICE_ACCOUNT);
       const accessToken = await getAccessToken(serviceAccount);
-
       const projectId = serviceAccount.project_id;
       const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${collection}`;
 
@@ -218,14 +209,8 @@ export default {
       const saved = await res.json();
       return jsonResponse(200, { id: saved.name, score }, {}, allowedOrigin);
     } catch (err) {
-      return jsonResponse(500, { error: err.message || 'Failed to save score' }, {}, allowedOrigin);
-    }
-    } catch (err) {
-      console.error('Uncaught worker error:', err);
-      return new Response(JSON.stringify({ error: 'Internal server error', details: err.message }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      console.error('Worker error:', err);
+      return jsonResponse(500, { error: err.message || 'Server error' }, {}, null);
     }
   }
 };
