@@ -139,30 +139,6 @@
 
   const saveEndpoint = 'https://save-score.japanesegyanburu.workers.dev';
 
-  // Keep the UI in sync with the authoritative server wallet.
-  // Any manual edits in the inspector will be overwritten by the server value.
-  auth.onAuthStateChanged(async user => {
-    if(!user) return;
-    const uid = user.uid;
-    const walletRef = doc(db, 'wallets', uid);
-
-    // Optional: ensure wallet exists (server functions normally create/update it).
-    try{
-      const snap = await getDoc(walletRef);
-      // If it doesn't exist we don't create it here because rules may block client writes.
-    }catch(e){ /* ignore */ }
-
-    // Overwrite displayed credits whenever server value changes
-    onSnapshot(walletRef, snap => {
-      if(!snap.exists()) return;
-      const data = snap.data();
-      if(typeof data.credits === 'number'){
-        const el = document.getElementById('credits');
-        if(el) el.textContent = String(data.credits);
-      }
-    }, err => console.warn('wallet onSnapshot error', err));
-  });
-
   // SAVE SCORE (via callable cloud function)
   saveBtn.addEventListener("click", async () => {
     const name = nameInput.value.trim() || 'Player';
