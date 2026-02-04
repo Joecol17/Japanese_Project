@@ -1,9 +1,9 @@
 const MAX_SCORE = 5000000; // absolute server safety cap (still higher than game-derived max)
-const ALLOWED_COLLECTIONS = new Set(['blackjack_scores', 'scores']);
+const ALLOWED_COLLECTIONS = new Set(['pachinko_scores', 'scores']);
 
 // Per-game server limits (do not trust client-provided values)
 const GAME_LIMITS = {
-  blackjack_scores: { MAX_BET: 10000, MAX_MULTIPLIER: 2, MAX_ROUNDS: 2000 },
+  pachinko_scores: { MAX_BET: 100, MAX_MULTIPLIER: 10, MAX_ROUNDS: 10000 },
   scores: { MAX_BET: 5000, MAX_MULTIPLIER: 10, MAX_ROUNDS: 20000 }
 };
 

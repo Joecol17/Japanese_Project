@@ -24,8 +24,7 @@
           <a href="gambling.html" title="Gambling" class="navbutton"><span>Gambling ▾</span></a>
           <div class="dropdown-menu" role="menu" aria-label="Games">
               <a href="slot_machine.html" class="dropdown-item">Slots</a>
-              <a href="game2.html" class="dropdown-item">Blackjack</a>
-              <a href="game3.html" class="dropdown-item">Game 3</a>
+              <a href="game2.html" class="dropdown-item">Pachinko</a>
           </div>
       </div>
     </div>
@@ -49,24 +48,12 @@
       </article>
 
       <article class="game-card">
-        <h3>Blackjack</h3>
-        <p>A fun multiplayer challenge — placeholder.</p>
+        <h3>Pachinko</h3>
+        <p>Japanese pinball arcade — drop balls and win prizes.</p>
         <a class="play-btn navbutton" href="game2.html">Play</a>
         <div class="global-leaderboard">
           <h3>Global Leaderboard</h3>
           <ol id="globalGame2Lb">
-            <li>Loading…</li>
-          </ol>
-        </div>
-      </article>
-
-      <article class="game-card">
-        <h3>Game 3 (Coming)</h3>
-        <p>Another game concept — placeholder.</p>
-        <a class="play-btn navbutton" href="game3.html">Play</a>
-        <div class="global-leaderboard">
-          <h3>Global Leaderboard</h3>
-          <ol id="globalGame3Lb">
             <li>Loading…</li>
           </ol>
         </div>
@@ -93,6 +80,7 @@
     const db = getFirestore(app);
 
     const slotsList = document.getElementById('globalSlotsLb');
+    const pachinkoList = document.getElementById('globalGame2Lb');
 
    
     const q = query(collection(db,'scores'), orderBy('score','desc'), limit(5));
@@ -122,6 +110,35 @@
         const li = document.createElement('li');
         li.innerHTML = `<span class="gl-rank">${j + 1}.</span> TBD <span class="gl-score">—</span>`;
         slotsList.appendChild(li);
+      }
+    });
+
+    // Pachinko leaderboard
+    const q2 = query(collection(db,'pachinko_scores'), orderBy('score','desc'), limit(5));
+    onSnapshot(q2, snap => {
+      const items = [];
+      snap.forEach(doc => items.push(doc.data()));
+      if(!pachinkoList) return;
+      pachinkoList.innerHTML = '';
+      if(items.length === 0){
+        for(let i=0;i<5;i++){
+          const li = document.createElement('li');
+          li.innerHTML = `<span class="gl-rank">${i + 1}.</span> TBD <span class="gl-score">—</span>`;
+          pachinkoList.appendChild(li);
+        }
+        return;
+      }
+    
+      items.forEach((d,i)=>{
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="gl-rank">${i + 1}.</span> ${escapeHtml(d.name)} <span class="gl-score">${escapeHtml(String(d.score))}</span>`;
+        pachinkoList.appendChild(li);
+      });
+      
+      for(let j=items.length;j<5;j++){
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="gl-rank">${j + 1}.</span> TBD <span class="gl-score">—</span>`;
+        pachinkoList.appendChild(li);
       }
     });
 
