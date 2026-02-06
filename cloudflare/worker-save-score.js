@@ -6,7 +6,7 @@ const GAME_LIMITS = {
     MAX_BET: 100, 
     MAX_MULTIPLIER: 50,  // Updated for 50x jackpot
     MAX_ROUNDS: 1000,
-    MIN_TIME_PER_ROUND: 1500,  // Pachinko takes time for balls to drop
+    MIN_TIME_PER_ROUND: 200,  // Allow faster gameplay - balls drop quick
     MAX_SCORE_PER_ROUND: 5000  // Max win is 50x * 100 = 5000
   },
   scores: { 
