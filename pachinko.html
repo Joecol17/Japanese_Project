@@ -448,15 +448,30 @@
       goldenBalls: false,     // Better slot targeting
       fastDrop: false,        // Balls drop faster
       extraSlots: false,      // Add more winning slots
-      jackpotBoost: false     // 50x becomes 1 in 25 instead of 1 in 50
+      jackpotBoost: false,    // 50x becomes 1 in 25 instead of 1 in 50
+      ballTier: 0             // Ball drop upgrade tier (0-5)
     };
+    
+    const BALL_TIERS = [
+      { tier: 0, balls: [1, 3, 5, 10], price: 0 },      // Default
+      { tier: 1, balls: [2, 5, 10, 20], price: 15000 },  // Tier 1: 2x/5/10/20
+      { tier: 2, balls: [3, 8, 15, 30], price: 50000 },  // Tier 2: 3x/8/15/30
+      { tier: 3, balls: [5, 12, 25, 50], price: 150000 }, // Tier 3: 5x/12/25/50
+      { tier: 4, balls: [10, 20, 40, 75], price: 500000 }, // Tier 4: 10x/20/40/75
+      { tier: 5, balls: [15, 30, 60, 100], price: 2000000 } // Tier 5: 15x/30/60/100
+    ];
     
     const SHOP_ITEMS = [
       { id: 'luckyCharm', name: 'Lucky Charm', desc: '+10% to all winnings', price: 2000 },
       { id: 'goldenBalls', name: 'Golden Balls', desc: 'Better aim for high value slots', price: 5000 },
       { id: 'fastDrop', name: 'Fast Drop', desc: 'Balls fall 50% faster', price: 3000 },
       { id: 'extraSlots', name: 'Extra Slots', desc: 'More chances to win', price: 4000 },
-      { id: 'jackpotBoost', name: 'Jackpot Boost', desc: '50x becomes 2x more likely!', price: 10000 }
+      { id: 'jackpotBoost', name: 'Jackpot Boost', desc: '50x becomes 2x more likely!', price: 10000 },
+      { id: 'ballTier1', name: '🔸 Ball Upgrade I', desc: 'Drop 2/5/10/20 balls', price: 15000, tier: 1 },
+      { id: 'ballTier2', name: '🔷 Ball Upgrade II', desc: 'Drop 3/8/15/30 balls', price: 50000, tier: 2 },
+      { id: 'ballTier3', name: '🟠 Ball Upgrade III', desc: 'Drop 5/12/25/50 balls', price: 150000, tier: 3 },
+      { id: 'ballTier4', name: '🟡 Ball Upgrade IV', desc: 'Drop 10/20/40/75 balls', price: 500000, tier: 4 },
+      { id: 'ballTier5', name: '🔴 Ball Upgrade V', desc: 'Drop 15/30/60/100 balls', price: 2000000, tier: 5 }
     ];
     
     // Protected score system
@@ -479,6 +494,18 @@
     
     function getScore() {
       return _totalScore;
+    }
+    
+    function getCurrentBallTier() {
+      return BALL_TIERS[upgrades.ballTier] || BALL_TIERS[0];
+    }
+    
+    function updateButtonLabels() {
+      const tier = getCurrentBallTier();
+      document.getElementById('dropBall').textContent = `Drop ${tier.balls[0]} Ball${tier.balls[0] > 1 ? 's' : ''} (¥${tier.balls[0] * 100})`;
+      document.getElementById('drop3').textContent = `Drop ${tier.balls[1]} (¥${tier.balls[1] * 100})`;
+      document.getElementById('drop5').textContent = `Drop ${tier.balls[2]} (¥${tier.balls[2] * 100})`;
+      document.getElementById('drop10').textContent = `Drop ${tier.balls[3]} (¥${tier.balls[3] * 100})`;
     }
 
     // DOM elements
@@ -518,6 +545,7 @@
       createSlots();
       loadStats();
       updateUI();
+      updateButtonLabels();
       loadLeaderboard();
       renderShop();
     }
@@ -554,13 +582,17 @@
       });
     }
 
-    function dropBall() {
-      if (credits < 100) {
+    function dropBall(count = null) {
+      const tier = getCurrentBallTier();
+      const ballCount = count || tier.balls[0];
+      const cost = ballCount * 100;
+      
+      if (credits < cost) {
         showPopup('Not enough credits!');
         return;
       }
 
-      credits -= 100;
+      credits -= cost;
       ballsDropped++;
       activeBalls++;
       updateUI();
@@ -747,10 +779,11 @@
         showPopup('⏳ Wait for current drop to finish!');
         return;
       }
+      const tier = getCurrentBallTier();
       isDropping = true;
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < tier.balls[1]; i++) {
         if (credits < 100) break;
-        dropBall();
+        dropBall(1);
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       isDropping = false;
@@ -761,10 +794,11 @@
         showPopup('⏳ Wait for current drop to finish!');
         return;
       }
+      const tier = getCurrentBallTier();
       isDropping = true;
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < tier.balls[2]; i++) {
         if (credits < 100) break;
-        dropBall();
+        dropBall(1);
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       isDropping = false;
@@ -775,10 +809,11 @@
         showPopup('⏳ Wait for current drop to finish!');
         return;
       }
+      const tier = getCurrentBallTier();
       isDropping = true;
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < tier.balls[3]; i++) {
         if (credits < 100) break;
-        dropBall();
+        dropBall(1);
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       isDropping = false;
@@ -790,18 +825,28 @@
     function renderShop() {
       shopItemsContainer.innerHTML = '';
       SHOP_ITEMS.forEach(item => {
-        const owned = upgrades[item.id];
+        let owned = false;
+        let canBuy = true;
+        
+        if (item.id.startsWith('ballTier')) {
+          owned = upgrades.ballTier >= item.tier;
+          canBuy = upgrades.ballTier === item.tier - 1;
+        } else {
+          owned = upgrades[item.id];
+        }
+        
         const shopItem = document.createElement('div');
         shopItem.className = `shop-item ${owned ? 'owned' : ''}`;
+        const buttonText = owned ? 'Owned' : !canBuy ? 'Locked' : 'Buy';
         shopItem.innerHTML = `
           <div class="shop-item-info">
             <h4>${item.name}</h4>
             <p>${item.desc}</p>
           </div>
           <div class="shop-item-buy">
-            <div class="shop-price">¥${item.price}</div>
-            <button class="navbutton" ${owned ? 'disabled' : ''} data-item="${item.id}">
-              ${owned ? 'Owned' : 'Buy'}
+            <div class="shop-price">¥${item.price.toLocaleString()}</div>
+            <button class="navbutton" ${owned || !canBuy ? 'disabled' : ''} data-item="${item.id}">
+              ${buttonText}
             </button>
           </div>
         `;
@@ -818,9 +863,22 @@
       const item = SHOP_ITEMS.find(i => i.id === itemId);
       if (!item) return;
       
-      if (upgrades[itemId]) {
-        showPopup('Already owned!');
-        return;
+      // Check if it's a ball tier upgrade
+      if (itemId.startsWith('ballTier')) {
+        const tier = item.tier;
+        if (upgrades.ballTier >= tier) {
+          showPopup('Already owned!');
+          return;
+        }
+        if (upgrades.ballTier !== tier - 1) {
+          showPopup('Must buy previous tier first!');
+          return;
+        }
+      } else {
+        if (upgrades[itemId]) {
+          showPopup('Already owned!');
+          return;
+        }
       }
       
       if (credits < item.price) {
@@ -829,7 +887,15 @@
       }
       
       credits -= item.price;
-      upgrades[itemId] = true;
+      
+      // Apply upgrade
+      if (itemId.startsWith('ballTier')) {
+        upgrades.ballTier = item.tier;
+        updateButtonLabels();
+      } else {
+        upgrades[itemId] = true;
+      }
+      
       showPopup(`✅ Bought ${item.name}!`);
       updateUI();
       renderShop();
