@@ -354,6 +354,11 @@
     let ballsDropped = 0;
     let bestWin = 0;
     let sessionStartTime = Date.now();
+    let activeBalls = 0; // Track balls currently in motion
+    let isDropping = false; // Prevent multiple drops at once
+    
+    // Track session data for backend validation
+    let actionTimes = [];
     
     // Protected score system
     let _totalScore = 0;
@@ -391,14 +396,18 @@
     const leaderboardEl = document.getElementById('leaderboard');
     const popupMessage = document.getElementById('popupMessage');
 
-    // Slot multipliers
+    // Slot multipliers with more variety - higher values on outside
     const slots = [
-      { x: 50, multiplier: 0 },
-      { x: 150, multiplier: 2 },
-      { x: 250, multiplier: 5 },
-      { x: 350, multiplier: 10 },
-      { x: 450, multiplier: 5 },
-      { x: 550, multiplier: 0 }
+      { x: 35, multiplier: 50 },
+      { x: 95, multiplier: 5 },
+      { x: 155, multiplier: 2 },
+      { x: 215, multiplier: 0.5 },
+      { x: 275, multiplier: 0 },
+      { x: 335, multiplier: 0 },
+      { x: 395, multiplier: 0.5 },
+      { x: 455, multiplier: 2 },
+      { x: 515, multiplier: 5 },
+      { x: 575, multiplier: 10 }
     ];
 
     // Initialize game
@@ -450,6 +459,7 @@
 
       credits -= 100;
       ballsDropped++;
+      activeBalls++;
       updateUI();
 
       const ball = document.createElement('div');
@@ -509,8 +519,11 @@
           
           if (winnings > 0) {
             showPopup(`+¥${winnings}!`);
+          } else if (winnings === 0) {
+            showPopup('💔 Nothing!');
           }
           
+          activeBalls--;
           updateUI();
           setTimeout(() => ball.remove(), 100);
         }
@@ -529,7 +542,18 @@
         }
       });
 
-      return closestSlot.multiplier * 100;
+      let multiplier = closestSlot.multiplier;
+      
+      // Make 50x very rare - only 1 in 50 chance
+      if (multiplier === 50) {
+        const roll = Math.floor(Math.random() * 50);
+        if (roll !== 0) {
+          // Didn't win jackpot, give smaller prize instead
+          multiplier = 5;
+        }
+      }
+
+      return multiplier * 100;
     }
 
     function showPopup(message) {
@@ -583,39 +607,65 @@
         showPopup('Enter 1-50 balls!');
         return;
       }
+      
+      if (isDropping) {
+        showPopup('⏳ Wait for current drop to finish!');
+        return;
+      }
+      
+      isDropping = true;
       for (let i = 0; i < count; i++) {
         if (credits < 100) {
           showPopup('Out of credits!');
           break;
         }
         dropBall();
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
+      isDropping = false;
     });
 
     // Quick drop buttons
     document.getElementById('drop3').addEventListener('click', async () => {
+      if (isDropping) {
+        showPopup('⏳ Wait for current drop to finish!');
+        return;
+      }
+      isDropping = true;
       for (let i = 0; i < 3; i++) {
         if (credits < 100) break;
         dropBall();
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
+      isDropping = false;
     });
 
     document.getElementById('drop5').addEventListener('click', async () => {
+      if (isDropping) {
+        showPopup('⏳ Wait for current drop to finish!');
+        return;
+      }
+      isDropping = true;
       for (let i = 0; i < 5; i++) {
         if (credits < 100) break;
         dropBall();
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
+      isDropping = false;
     });
 
     document.getElementById('drop10').addEventListener('click', async () => {
+      if (isDropping) {
+        showPopup('⏳ Wait for current drop to finish!');
+        return;
+      }
+      isDropping = true;
       for (let i = 0; i < 10; i++) {
         if (credits < 100) break;
         dropBall();
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
+      isDropping = false;
     });
 
     dropButton.addEventListener('click', dropBall);
@@ -633,6 +683,10 @@
         alert('Play some games first!');
         return;
       }
+      
+      // Calculate session metrics for backend validation
+      const sessionDuration = Date.now() - sessionStartTime;
+      const avgScorePerBall = ballsDropped > 0 ? Math.round(score / ballsDropped) : 0;
 
       try {
         const response = await fetch('https://save-score.japanesegyanburu.workers.dev', {
@@ -643,9 +697,9 @@
             score: score,
             collection: 'pachinko_scores',
             maxBet: 100,
-            maxMultiplier: 10,
+            maxMultiplier: 50,
             roundsPlayed: ballsDropped,
-            sessionTime: Date.now() - sessionStartTime  // Anti-cheat: track session duration
+            sessionTime: sessionDuration
           })
         });
 

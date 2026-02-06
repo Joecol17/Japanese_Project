@@ -1,18 +1,18 @@
-const MAX_SCORE = 5000000;
 const ALLOWED_COLLECTIONS = new Set(['pachinko_scores', 'scores']);
 
 // Stricter limits to prevent cheating
 const GAME_LIMITS = {
   pachinko_scores: { 
     MAX_BET: 100, 
-    MAX_MULTIPLIER: 10, 
-    MAX_ROUNDS: 1000,  // Reduced from 10000
-    MIN_TIME_PER_ROUND: 500  // ms - minimum time per game round
+    MAX_MULTIPLIER: 50,  // Updated for 50x jackpot
+    MAX_ROUNDS: 1000,
+    MIN_TIME_PER_ROUND: 1500,  // Pachinko takes time for balls to drop
+    MAX_SCORE_PER_ROUND: 5000  // Max win is 50x * 100 = 5000
   },
   scores: { 
     MAX_BET: 5000, 
     MAX_MULTIPLIER: 10, 
-    MAX_ROUNDS: 500,  // Reduced from 20000
+    MAX_ROUNDS: 500,
     MIN_TIME_PER_ROUND: 1000  // ms - slots take longer
   }
 };
@@ -193,38 +193,41 @@ export default {
       const roundsPlayed = clampInt(rawRounds, 1, limits.MAX_ROUNDS);
       const sessionTime = Math.max(0, Number(rawSessionTime || 0));
       
-      // Calculate maximum possible score
-      const maxPossibleScore = maxBet * maxMultiplier * roundsPlayed;
-      const score = Math.min(MAX_SCORE, Math.floor(clientScore));
+      // Accept the score as-is (allow ridiculously high scores)
+      const score = Math.max(0, Math.floor(clientScore));
 
-      // Validation 1: Score vs maximum possible
-      if (score > maxPossibleScore) {
-        return jsonResponse(422, { error: 'Score exceeds maximum possible' }, {}, allowedOrigin);
-      }
-
-      // Validation 2: Minimum session time (detect instant completion)
+      // Validation 1: Minimum session time (detect instant completion)
       const minSessionTime = roundsPlayed * limits.MIN_TIME_PER_ROUND;
       if (sessionTime < minSessionTime) {
         console.warn(`Suspicious: Session too fast. Time: ${sessionTime}ms, Min: ${minSessionTime}ms`);
-        return jsonResponse(422, { error: 'Session completed too quickly' }, {}, allowedOrigin);
+        return jsonResponse(422, { error: 'Session completed too quickly - please play normally' }, {}, allowedOrigin);
       }
 
-      // Validation 3: Score rate check (per minute)
-      if (sessionTime > 0) {
-        const scorePerMinute = (score / sessionTime) * 60000;
-        if (scorePerMinute > SESSION_TRACKING.MAX_SCORE_PER_MINUTE) {
-          console.warn(`Suspicious: Score rate too high. ${scorePerMinute}/min`);
-          return jsonResponse(422, { error: 'Score rate exceeds limits' }, {}, allowedOrigin);
-        }
+      // Validation 2: Check if score exceeds theoretical maximum
+      const maxPossibleScore = roundsPlayed * (limits.MAX_SCORE_PER_ROUND || (maxBet * maxMultiplier));
+      if (score > maxPossibleScore) {
+        console.warn(`Suspicious: Score ${score} exceeds max possible ${maxPossibleScore}`);
+        return jsonResponse(422, { error: 'Score exceeds maximum possible value' }, {}, allowedOrigin);
       }
 
-      // Validation 4: Win rate check (if score is too close to theoretical max)
-      const theoreticalMax = maxPossibleScore;
-      const winRate = theoreticalMax > 0 ? score / theoreticalMax : 0;
-      if (winRate > SESSION_TRACKING.SUSPICIOUS_WIN_RATE) {
-        console.warn(`Suspicious: Win rate too high. ${(winRate * 100).toFixed(1)}%`);
-        // Still allow but flag it
+      // Validation 3: Check average score per round (detect impossible win rates)
+      const avgScorePerRound = roundsPlayed > 0 ? score / roundsPlayed : 0;
+      const reasonableAvg = maxBet * maxMultiplier * 0.3; // Max 30% average return
+      if (avgScorePerRound > reasonableAvg) {
+        console.warn(`Suspicious: Avg ${avgScorePerRound} per round exceeds reasonable ${reasonableAvg}`);
+        return jsonResponse(422, { error: 'Win rate statistically impossible' }, {}, allowedOrigin);
       }
+
+      // Validation 2: Score rate check (per minute) - removed to allow high scores
+      // if (sessionTime > 0) {
+      //   const scorePerMinute = (score / sessionTime) * 60000;
+      //   if (scorePerMinute > SESSION_TRACKING.MAX_SCORE_PER_MINUTE) {
+      //     console.warn(`Suspicious: Score rate too high. ${scorePerMinute}/min`);
+      //     return jsonResponse(422, { error: 'Score rate exceeds limits' }, {}, allowedOrigin);
+      //   }
+      // }
+
+      // Note: Max score and win rate checks removed to allow ridiculously high scores
 
       try {
         const serviceAccount = parseServiceAccount(env.FIREBASE_SERVICE_ACCOUNT);
