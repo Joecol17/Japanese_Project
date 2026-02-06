@@ -541,10 +541,10 @@
     }
 
     function updateUI() {
-      creditsEl.textContent = credits || 0;
-      totalScoreEl.textContent = getScore() || 0;
-      ballsDroppedEl.textContent = ballsDropped || 0;
-      bestWinEl.textContent = bestWin || 0;
+      if (creditsEl) creditsEl.textContent = credits || 0;
+      if (totalScoreEl) totalScoreEl.textContent = getScore() || 0;
+      if (ballsDroppedEl) ballsDroppedEl.textContent = ballsDropped || 0;
+      if (bestWinEl) bestWinEl.textContent = bestWin || 0;
       saveStats();
     }
 
@@ -680,7 +680,8 @@
           const data = doc.data();
           const li = document.createElement('li');
           const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
-          li.innerHTML = `<span>${medal} ${index + 1}. ${escapeHtml(data.name)}</span><span>${escapeHtml(String(data.score))}</span>`;
+          const name = (!data.name || data.name === 'NaN' || String(data.name) === 'NaN') ? 'Anonymous' : data.name;
+          li.innerHTML = `<span>${medal} ${index + 1}. ${escapeHtml(name)}</span><span>${escapeHtml(String(data.score || 0))}</span>`;
           leaderboardEl.appendChild(li);
         });
       }, (error) => {
@@ -690,6 +691,10 @@
     }
 
     function escapeHtml(s) {
+      // Handle NaN and undefined/null values
+      if (s === null || s === undefined || s === 'NaN' || (typeof s === 'number' && isNaN(s))) {
+        return 'Anonymous';
+      }
       return String(s)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -702,8 +707,12 @@
     window.getPachinkoScore = () => getScore();
     window.getPachinkoBallsDropped = () => Math.max(1, ballsDropped);
 
-    // Initialize on load
-    init();
+    // Initialize on load - ensure DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
   </script>
 </body>
 </html>

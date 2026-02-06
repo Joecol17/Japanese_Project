@@ -132,7 +132,8 @@
     snapshot.forEach((doc) => {
       const data = doc.data();
       const li = document.createElement("li");
-      li.textContent = `${data.name} — ${data.score}`;
+      const name = (!data.name || data.name === 'NaN' || String(data.name) === 'NaN') ? 'Anonymous' : data.name;
+      li.textContent = `${name} — ${data.score || 0}`;
       lbList.appendChild(li);
     });
   });

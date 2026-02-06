@@ -113,7 +113,8 @@
       items.forEach((d,i)=>{
         const li = document.createElement('li');
         const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
-        li.innerHTML = `<span class="gl-rank">${medal}${i + 1}.</span> ${escapeHtml(d.name)} <span class="gl-score">${escapeHtml(String(d.score))}</span>`;
+        const name = (!d.name || d.name === 'NaN' || String(d.name) === 'NaN') ? 'Anonymous' : d.name;
+        li.innerHTML = `<span class="gl-rank">${medal}${i + 1}.</span> ${escapeHtml(name)} <span class="gl-score">${escapeHtml(String(d.score || 0))}</span>`;
         slotsList.appendChild(li);
       });
       
@@ -143,7 +144,8 @@
       items.forEach((d,i)=>{
         const li = document.createElement('li');
         const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
-        li.innerHTML = `<span class="gl-rank">${medal}${i + 1}.</span> ${escapeHtml(d.name)} <span class="gl-score">${escapeHtml(String(d.score))}</span>`;
+        const name = (!d.name || d.name === 'NaN' || String(d.name) === 'NaN') ? 'Anonymous' : d.name;
+        li.innerHTML = `<span class="gl-rank">${medal}${i + 1}.</span> ${escapeHtml(name)} <span class="gl-score">${escapeHtml(String(d.score || 0))}</span>`;
         pachinkoList.appendChild(li);
       });
       
@@ -193,11 +195,12 @@
           rankColor = '#cd7f32';
         }
 
+        const playerName = (!player.name || player.name === 'NaN' || String(player.name) === 'NaN') ? 'Anonymous' : player.name;
         li.innerHTML = `
           <span style="color: ${rankColor}; font-weight: bold; min-width: 60px;">${medal} #${rank}</span>
-          <span style="flex: 1; padding: 0 15px;">${escapeHtml(player.name)}</span>
+          <span style="flex: 1; padding: 0 15px;">${escapeHtml(playerName)}</span>
           <span style="color: #ffeb3b; margin-right: 10px;">${player.game}</span>
-          <span style="color: #4caf50; font-weight: bold; font-size: 1.2em;">${escapeHtml(String(player.score))}</span>
+          <span style="color: #4caf50; font-weight: bold; font-size: 1.2em;">${escapeHtml(String(player.score || 0))}</span>
         `;
         combinedEl.appendChild(li);
       });
@@ -221,6 +224,10 @@
 
     
     function escapeHtml(s){
+      // Handle NaN and undefined/null values
+      if (s === null || s === undefined || s === 'NaN' || (typeof s === 'number' && isNaN(s))) {
+        return 'Anonymous';
+      }
       return String(s)
         .replace(/&/g,'&amp;')
         .replace(/</g,'&lt;')
