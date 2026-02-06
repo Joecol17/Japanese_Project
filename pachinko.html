@@ -541,10 +541,10 @@
     }
 
     function updateUI() {
-      creditsEl.textContent = credits;
-      totalScoreEl.textContent = getScore();
-      ballsDroppedEl.textContent = ballsDropped;
-      bestWinEl.textContent = bestWin;
+      creditsEl.textContent = credits || 0;
+      totalScoreEl.textContent = getScore() || 0;
+      ballsDroppedEl.textContent = ballsDropped || 0;
+      bestWinEl.textContent = bestWin || 0;
       saveStats();
     }
 

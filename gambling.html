@@ -32,7 +32,18 @@
 
   <main style="max-width:1100px;margin:28px auto;padding:18px;">
     <h1 style="color:var(--primary-red);">Gambling — Games</h1>
-    <p>Choose a game below. These are placeholders — we'll add full game pages later.</p>
+    
+    <section style="margin: 30px 0; padding: 30px; background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%); border-radius: 20px; box-shadow: 0 10px 40px rgba(196, 30, 58, 0.4);">
+      <h2 style="text-align: center; color: #ffd700; font-size: 2.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); margin-bottom: 10px;">🏆 Grand Champions Leaderboard 🏆</h2>
+      <p style="text-align: center; color: #fff; font-size: 1.2em; margin-bottom: 30px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">Top 10 players across all games</p>
+      <div style="background: rgba(0,0,0,0.3); border-radius: 15px; padding: 20px;">
+        <ol id="combinedLeaderboard" style="list-style: none; padding: 0; max-width: 800px; margin: 0 auto;">
+          <li style="padding: 15px; color: #fff;">Loading...</li>
+        </ol>
+      </div>
+    </section>
+
+    <p style="margin-top: 30px;">Choose a game below to play and compete for the top spot!</p>
 
     <section class="games-grid">
       <article class="game-card">
@@ -101,8 +112,8 @@
     
       items.forEach((d,i)=>{
         const li = document.createElement('li');
-      
-        li.innerHTML = `<span class="gl-rank">${i + 1}.</span> ${escapeHtml(d.name)} <span class="gl-score">${escapeHtml(String(d.score))}</span>`;
+        const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
+        li.innerHTML = `<span class="gl-rank">${medal}${i + 1}.</span> ${escapeHtml(d.name)} <span class="gl-score">${escapeHtml(String(d.score))}</span>`;
         slotsList.appendChild(li);
       });
       
@@ -141,6 +152,71 @@
         li.innerHTML = `<span class="gl-rank">${j + 1}.</span> TBD <span class="gl-score">—</span>`;
         pachinkoList.appendChild(li);
       }
+    });
+
+    // Combined Leaderboard - Merge both games and show top 10
+    const combinedEl = document.getElementById('combinedLeaderboard');
+    let slotsScores = [];
+    let pachinkoScores = [];
+
+    function updateCombinedLeaderboard() {
+      const combined = [
+        ...slotsScores.map(s => ({...s, game: 'Slots 🎰'})),
+        ...pachinkoScores.map(s => ({...s, game: 'Pachinko 🎯'}))
+      ];
+      combined.sort((a, b) => b.score - a.score);
+      const top10 = combined.slice(0, 10);
+
+      combinedEl.innerHTML = '';
+      if (top10.length === 0) {
+        combinedEl.innerHTML = '<li style="padding: 15px; color: #fff;">No scores yet. Be the first champion!</li>';
+        return;
+      }
+
+      top10.forEach((player, i) => {
+        const li = document.createElement('li');
+        li.style = 'padding: 15px; margin: 8px 0; background: rgba(255,255,255,0.1); border-radius: 10px; display: flex; justify-content: space-between; align-items: center; color: #fff; font-size: 1.1em; transition: all 0.3s;';
+        li.onmouseover = () => li.style.background = 'rgba(255,215,0,0.2)';
+        li.onmouseout = () => li.style.background = 'rgba(255,255,255,0.1)';
+        
+        const rank = i + 1;
+        let medal = '';
+        let rankColor = '#fff';
+        if (rank === 1) {
+          medal = '🥇';
+          rankColor = '#ffd700';
+        } else if (rank === 2) {
+          medal = '🥈';
+          rankColor = '#c0c0c0';
+        } else if (rank === 3) {
+          medal = '🥉';
+          rankColor = '#cd7f32';
+        }
+
+        li.innerHTML = `
+          <span style="color: ${rankColor}; font-weight: bold; min-width: 60px;">${medal} #${rank}</span>
+          <span style="flex: 1; padding: 0 15px;">${escapeHtml(player.name)}</span>
+          <span style="color: #ffeb3b; margin-right: 10px;">${player.game}</span>
+          <span style="color: #4caf50; font-weight: bold; font-size: 1.2em;">${escapeHtml(String(player.score))}</span>
+        `;
+        combinedEl.appendChild(li);
+      });
+    }
+
+    // Update slots scores for combined board
+    const q3 = query(collection(db,'scores'), orderBy('score','desc'), limit(10));
+    onSnapshot(q3, snap => {
+      slotsScores = [];
+      snap.forEach(doc => slotsScores.push(doc.data()));
+      updateCombinedLeaderboard();
+    });
+
+    // Update pachinko scores for combined board
+    const q4 = query(collection(db,'pachinko_scores'), orderBy('score','desc'), limit(10));
+    onSnapshot(q4, snap => {
+      pachinkoScores = [];
+      snap.forEach(doc => pachinkoScores.push(doc.data()));
+      updateCombinedLeaderboard();
     });
 
     
