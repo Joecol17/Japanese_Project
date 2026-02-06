@@ -363,7 +363,7 @@
         <button id="drop5" class="navbutton">Drop 5 (¥500)</button>
         <button id="drop10" class="navbutton">Drop 10 (¥1000)</button>
         <label style="color:#fff;">
-          Custom: <input id="ballCount" type="number" min="1" max="50" value="10" style="width:70px;padding:5px;">
+          Custom: <input id="ballCount" type="number" min="1" max="10" value="10" style="width:70px;padding:5px;">
         </label>
         <button id="autoDrop" class="navbutton">Drop Custom</button>
         <button id="shopButton" class="navbutton" style="background:#ffd700;color:#000;">🛍️ Shop</button>
@@ -506,6 +506,13 @@
       document.getElementById('drop3').textContent = `Drop ${tier.balls[1]} (¥${tier.balls[1] * 100})`;
       document.getElementById('drop5').textContent = `Drop ${tier.balls[2]} (¥${tier.balls[2] * 100})`;
       document.getElementById('drop10').textContent = `Drop ${tier.balls[3]} (¥${tier.balls[3] * 100})`;
+      
+      // Update custom input max value
+      const maxBalls = tier.balls[3];
+      ballCountInput.max = maxBalls;
+      if (parseInt(ballCountInput.value) > maxBalls) {
+        ballCountInput.value = maxBalls;
+      }
     }
 
     // DOM elements
@@ -750,9 +757,19 @@
 
     // Auto drop
     autoDropButton.addEventListener('click', async () => {
-      const count = parseInt(ballCountInput.value) || 10;
-      if (count < 1 || count > 50) {
-        showPopup('Enter 1-50 balls!');
+      const tier = getCurrentBallTier();
+      const maxBalls = tier.balls[3];
+      let count = parseInt(ballCountInput.value) || 10;
+      
+      // Enforce tier limit
+      if (count > maxBalls) {
+        showPopup(`Max ${maxBalls} balls for your tier!`);
+        ballCountInput.value = maxBalls;
+        count = maxBalls;
+      }
+      
+      if (count < 1) {
+        showPopup('Enter at least 1 ball!');
         return;
       }
       
@@ -767,7 +784,7 @@
           showPopup('Out of credits!');
           break;
         }
-        dropBall();
+        dropBall(1);
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       isDropping = false;
