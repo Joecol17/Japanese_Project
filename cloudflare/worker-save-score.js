@@ -196,26 +196,45 @@ export default {
       // Accept the score as-is (allow ridiculously high scores)
       const score = Math.max(0, Math.floor(clientScore));
 
+      // Comprehensive anti-cheat validation
+      
       // Validation 1: Minimum session time (detect instant completion)
-      const minSessionTime = roundsPlayed * limits.MIN_TIME_PER_ROUND;
+      const minSessionTime = roundsPlayed * limits.MIN_TIME_PER_ROUND * 0.5; // Allow some variance
       if (sessionTime < minSessionTime) {
         console.warn(`Suspicious: Session too fast. Time: ${sessionTime}ms, Min: ${minSessionTime}ms`);
-        return jsonResponse(422, { error: 'Session completed too quickly - please play normally' }, {}, allowedOrigin);
+        return jsonResponse(422, { error: 'Session completed too quickly' }, {}, allowedOrigin);
       }
 
-      // Validation 2: Check if score exceeds theoretical maximum
-      const maxPossibleScore = roundsPlayed * (limits.MAX_SCORE_PER_ROUND || (maxBet * maxMultiplier));
-      if (score > maxPossibleScore) {
-        console.warn(`Suspicious: Score ${score} exceeds max possible ${maxPossibleScore}`);
-        return jsonResponse(422, { error: 'Score exceeds maximum possible value' }, {}, allowedOrigin);
+      // Validation 2: Check if score exceeds theoretical maximum (with margin)
+      const absoluteMaxScore = roundsPlayed * (limits.MAX_SCORE_PER_ROUND || (maxBet * maxMultiplier));
+      if (score > absoluteMaxScore * 1.5) {  // 50% margin for upgrades
+        console.warn(`Suspicious: Score ${score} exceeds absolute max ${absoluteMaxScore * 1.5}`);
+        return jsonResponse(422, { error: 'Score impossibly high' }, {}, allowedOrigin);
       }
 
-      // Validation 3: Check average score per round (detect impossible win rates)
+      // Validation 3: Win rate check - 40% average maximum
       const avgScorePerRound = roundsPlayed > 0 ? score / roundsPlayed : 0;
-      const reasonableAvg = maxBet * maxMultiplier * 0.3; // Max 30% average return
+      const maxAvgReturn = collection === 'pachinko_scores' ? 0.4 : 0.35; // 40% for pachinko, 35% for slots
+      const reasonableAvg = maxBet * maxMultiplier * maxAvgReturn;
       if (avgScorePerRound > reasonableAvg) {
-        console.warn(`Suspicious: Avg ${avgScorePerRound} per round exceeds reasonable ${reasonableAvg}`);
-        return jsonResponse(422, { error: 'Win rate statistically impossible' }, {}, allowedOrigin);
+        console.warn(`Suspicious: Avg ${avgScorePerRound} per round exceeds ${reasonableAvg}`);
+        return jsonResponse(422, { error: 'Win rate too high - average ' + avgScorePerRound.toFixed(0) + ' per round' }, {}, allowedOrigin);
+      }
+      
+      // Validation 4: Check for suspiciously round numbers (code manipulation)
+      if (score > 10000 && score % 1000 === 0 && roundsPlayed < 100) {
+        console.warn(`Suspicious: Perfect round number ${score} with few rounds ${roundsPlayed}`);
+        return jsonResponse(422, { error: 'Suspicious score pattern detected' }, {}, allowedOrigin);
+      }
+      
+      // Validation 5: Score/time ratio (detect automation)
+      if (sessionTime > 0) {
+        const scorePerSecond = (score / sessionTime) * 1000;
+        const maxScorePerSecond = collection === 'pachinko_scores' ? 500 : 200; // Allow fast pachinko
+        if (scorePerSecond > maxScorePerSecond) {
+          console.warn(`Suspicious: Score rate ${scorePerSecond}/sec exceeds ${maxScorePerSecond}`);
+          return jsonResponse(422, { error: 'Score accumulation too fast' }, {}, allowedOrigin);
+        }
       }
 
       // Validation 2: Score rate check (per minute) - removed to allow high scores

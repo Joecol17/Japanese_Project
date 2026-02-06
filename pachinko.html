@@ -176,6 +176,84 @@
       50% { transform: translate(-50%, -50%) scale(1.1); }
     }
     
+    .shop-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    
+    .shop-content {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border: 3px solid #c41e3a;
+      border-radius: 15px;
+      padding: 30px;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+    }
+    
+    .shop-close {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 2em;
+      color: #e94560;
+      cursor: pointer;
+      background: none;
+      border: none;
+    }
+    
+    .shop-item {
+      background: rgba(196, 30, 58, 0.2);
+      border: 2px solid #c41e3a;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 15px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .shop-item-info h4 {
+      color: #e94560;
+      margin: 0 0 5px 0;
+    }
+    
+    .shop-item-info p {
+      color: #fff;
+      margin: 0;
+      font-size: 0.9em;
+    }
+    
+    .shop-item-buy {
+      text-align: right;
+    }
+    
+    .shop-price {
+      color: #ffd700;
+      font-weight: bold;
+      font-size: 1.2em;
+      margin-bottom: 5px;
+    }
+    
+    .shop-item.owned {
+      opacity: 0.6;
+      border-color: #555;
+    }
+    
+    .shop-item.owned button {
+      background: #555;
+      cursor: not-allowed;
+    }
+
     /* Mobile Responsive Styles */
     @media (max-width: 768px) {
       .pachinko-container {
@@ -288,6 +366,7 @@
           Custom: <input id="ballCount" type="number" min="1" max="50" value="10" style="width:70px;padding:5px;">
         </label>
         <button id="autoDrop" class="navbutton">Drop Custom</button>
+        <button id="shopButton" class="navbutton" style="background:#ffd700;color:#000;">🛍️ Shop</button>
       </div>
 
       <div class="stats-panel">
@@ -302,10 +381,6 @@
         <div class="stat-item">
           <div class="stat-label">Balls Dropped</div>
           <div class="stat-value" id="ballsDropped">0</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-label">Best Win</div>
-          <div class="stat-value" id="bestWin">0</div>
         </div>
       </div>
     </div>
@@ -325,6 +400,14 @@
   </main>
 
   <div id="popupMessage" class="popup-message"></div>
+  
+  <div id="shopModal" class="shop-modal">
+    <div class="shop-content">
+      <button class="shop-close" id="closeShop">&times;</button>
+      <h2 style="color:#e94560;text-align:center;margin-top:0;">🛍️ Upgrade Shop</h2>
+      <div id="shopItems"></div>
+    </div>
+  </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -352,13 +435,29 @@
     // Game state with anti-cheat protection
     let credits = 1000;
     let ballsDropped = 0;
-    let bestWin = 0;
     let sessionStartTime = Date.now();
     let activeBalls = 0; // Track balls currently in motion
     let isDropping = false; // Prevent multiple drops at once
     
     // Track session data for backend validation
     let actionTimes = [];
+    
+    // Shop upgrades
+    let upgrades = {
+      luckyCharm: false,      // +10% to all wins
+      goldenBalls: false,     // Better slot targeting
+      fastDrop: false,        // Balls drop faster
+      extraSlots: false,      // Add more winning slots
+      jackpotBoost: false     // 50x becomes 1 in 25 instead of 1 in 50
+    };
+    
+    const SHOP_ITEMS = [
+      { id: 'luckyCharm', name: 'Lucky Charm', desc: '+10% to all winnings', price: 2000 },
+      { id: 'goldenBalls', name: 'Golden Balls', desc: 'Better aim for high value slots', price: 5000 },
+      { id: 'fastDrop', name: 'Fast Drop', desc: 'Balls fall 50% faster', price: 3000 },
+      { id: 'extraSlots', name: 'Extra Slots', desc: 'More chances to win', price: 4000 },
+      { id: 'jackpotBoost', name: 'Jackpot Boost', desc: '50x becomes 2x more likely!', price: 10000 }
+    ];
     
     // Protected score system
     let _totalScore = 0;
@@ -390,11 +489,14 @@
     const creditsEl = document.getElementById('credits');
     const totalScoreEl = document.getElementById('totalScore');
     const ballsDroppedEl = document.getElementById('ballsDropped');
-    const bestWinEl = document.getElementById('bestWin');
     const saveButton = document.getElementById('saveScore');
     const playerNameInput = document.getElementById('playerName');
     const leaderboardEl = document.getElementById('leaderboard');
     const popupMessage = document.getElementById('popupMessage');
+    const shopButton = document.getElementById('shopButton');
+    const shopModal = document.getElementById('shopModal');
+    const closeShop = document.getElementById('closeShop');
+    const shopItemsContainer = document.getElementById('shopItems');
 
     // Slot multipliers with more variety - higher values on outside
     const slots = [
@@ -417,6 +519,7 @@
       loadStats();
       updateUI();
       loadLeaderboard();
+      renderShop();
     }
 
     function createPins() {
@@ -477,7 +580,7 @@
       let y = parseFloat(ball.style.top);
       let vx = (Math.random() - 0.5) * 2;
       let vy = 0;
-      const gravity = 0.5;
+      const gravity = upgrades.fastDrop ? 0.75 : 0.5; // Faster if upgraded
       const bounce = 0.7;
 
       const interval = setInterval(() => {
@@ -512,10 +615,15 @@
         // Check if ball reached bottom
         if (y > board.offsetHeight - 50) {
           clearInterval(interval);
-          const winnings = calculateWinnings(x);
+          let winnings = calculateWinnings(x);
+          
+          // Apply lucky charm bonus
+          if (upgrades.luckyCharm && winnings > 0) {
+            winnings = Math.floor(winnings * 1.1);
+          }
+          
           credits += winnings;
           addScore(winnings);
-          if (winnings > bestWin) bestWin = winnings;
           
           if (winnings > 0) {
             showPopup(`+¥${winnings}!`);
@@ -544,12 +652,21 @@
 
       let multiplier = closestSlot.multiplier;
       
-      // Make 50x very rare - only 1 in 50 chance
+      // Make 50x very rare - only 1 in 50 chance (or 1 in 25 with upgrade)
       if (multiplier === 50) {
-        const roll = Math.floor(Math.random() * 50);
+        const jackpotChance = upgrades.jackpotBoost ? 25 : 50;
+        const roll = Math.floor(Math.random() * jackpotChance);
         if (roll !== 0) {
           // Didn't win jackpot, give smaller prize instead
           multiplier = 5;
+        }
+      }
+      
+      // Golden balls upgrade - bias toward higher slots
+      if (upgrades.goldenBalls && multiplier < 2) {
+        // 30% chance to bump up low wins
+        if (Math.random() < 0.3) {
+          multiplier = 2;
         }
       }
 
@@ -568,7 +685,6 @@
       if (creditsEl) creditsEl.textContent = credits || 0;
       if (totalScoreEl) totalScoreEl.textContent = getScore() || 0;
       if (ballsDroppedEl) ballsDroppedEl.textContent = ballsDropped || 0;
-      if (bestWinEl) bestWinEl.textContent = bestWin || 0;
       saveStats();
     }
 
@@ -580,7 +696,7 @@
           credits = stats.credits || 1000;
           _totalScore = stats.totalScore || 0;
           ballsDropped = stats.ballsDropped || 0;
-          bestWin = stats.bestWin || 0;
+          upgrades = stats.upgrades || upgrades;
         }
       } catch (e) {
         console.warn('Failed to load stats:', e);
@@ -593,7 +709,7 @@
           credits,
           totalScore: getScore(),
           ballsDropped,
-          bestWin
+          upgrades
         }));
       } catch (e) {
         console.warn('Failed to save stats:', e);
@@ -666,6 +782,72 @@
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       isDropping = false;
+    });
+
+    dropButton.addEventListener('click', dropBall);
+    
+    // Shop functionality
+    function renderShop() {
+      shopItemsContainer.innerHTML = '';
+      SHOP_ITEMS.forEach(item => {
+        const owned = upgrades[item.id];
+        const shopItem = document.createElement('div');
+        shopItem.className = `shop-item ${owned ? 'owned' : ''}`;
+        shopItem.innerHTML = `
+          <div class="shop-item-info">
+            <h4>${item.name}</h4>
+            <p>${item.desc}</p>
+          </div>
+          <div class="shop-item-buy">
+            <div class="shop-price">¥${item.price}</div>
+            <button class="navbutton" ${owned ? 'disabled' : ''} data-item="${item.id}">
+              ${owned ? 'Owned' : 'Buy'}
+            </button>
+          </div>
+        `;
+        shopItemsContainer.appendChild(shopItem);
+      });
+      
+      // Add buy listeners
+      document.querySelectorAll('[data-item]').forEach(btn => {
+        btn.addEventListener('click', () => buyUpgrade(btn.dataset.item));
+      });
+    }
+    
+    function buyUpgrade(itemId) {
+      const item = SHOP_ITEMS.find(i => i.id === itemId);
+      if (!item) return;
+      
+      if (upgrades[itemId]) {
+        showPopup('Already owned!');
+        return;
+      }
+      
+      if (credits < item.price) {
+        showPopup('Not enough credits!');
+        return;
+      }
+      
+      credits -= item.price;
+      upgrades[itemId] = true;
+      showPopup(`✅ Bought ${item.name}!`);
+      updateUI();
+      renderShop();
+    }
+    
+    shopButton.addEventListener('click', () => {
+      shopModal.style.display = 'flex';
+      renderShop();
+    });
+    
+    closeShop.addEventListener('click', () => {
+      shopModal.style.display = 'none';
+    });
+    
+    shopModal.addEventListener('click', (e) => {
+      if (e.target === shopModal) {
+        shopModal.style.display = 'none';
+      }
     });
 
     dropButton.addEventListener('click', dropBall);
