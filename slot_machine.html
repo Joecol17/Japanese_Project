@@ -138,6 +138,7 @@
   });
 
   const saveEndpoint = 'https://save-score.japanesegyanburu.workers.dev';
+  let sessionStartTime = Date.now(); // Track when game session started
 
   // SAVE SCORE (via callable cloud function)
   saveBtn.addEventListener("click", async () => {
@@ -205,7 +206,8 @@
           collection: 'scores',
           maxBet,
           maxMultiplier,
-          roundsPlayed
+          roundsPlayed,
+          sessionTime: Date.now() - sessionStartTime  // Anti-cheat: track session duration
         })
       });
       if(!res.ok){
@@ -225,11 +227,11 @@
         }catch(e){ /* ignore backup errors */ }
       })();
 
-      alert('Score saved (server recorded score: ' + (data && data.score) + ')');
+      console.log('Score saved successfully:', data && data.score);
       nameInput.value = '';
     }catch(err){
       console.error('saveScore call failed', err);
-      alert('Failed to save score: ' + (err && err.message ? err.message : String(err)));
+      console.error('Failed to save score:', err && err.message ? err.message : String(err));
     }
   });
   

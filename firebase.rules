@@ -18,6 +18,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Pachinko scores: allow public reads; writes must go through server.
+    match /pachinko_scores/{docId} {
+      allow read: if true;
+
+      // Disallow all client writes (use server-side endpoint)
+      allow write: if false;
+    }
+
     // Wallets: clients should not be able to write directly to wallets documents.
     match /wallets/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;

@@ -1,9 +1,26 @@
 const MAX_SCORE = 5000000;
 const ALLOWED_COLLECTIONS = new Set(['pachinko_scores', 'scores']);
 
+// Stricter limits to prevent cheating
 const GAME_LIMITS = {
-  pachinko_scores: { MAX_BET: 100, MAX_MULTIPLIER: 10, MAX_ROUNDS: 10000 },
-  scores: { MAX_BET: 5000, MAX_MULTIPLIER: 10, MAX_ROUNDS: 20000 }
+  pachinko_scores: { 
+    MAX_BET: 100, 
+    MAX_MULTIPLIER: 10, 
+    MAX_ROUNDS: 1000,  // Reduced from 10000
+    MIN_TIME_PER_ROUND: 500  // ms - minimum time per game round
+  },
+  scores: { 
+    MAX_BET: 5000, 
+    MAX_MULTIPLIER: 10, 
+    MAX_ROUNDS: 500,  // Reduced from 20000
+    MIN_TIME_PER_ROUND: 1000  // ms - slots take longer
+  }
+};
+
+// Session tracking to detect suspicious patterns
+const SESSION_TRACKING = {
+  MAX_SCORE_PER_MINUTE: 50000,  // Maximum reasonable score gain per minute
+  SUSPICIOUS_WIN_RATE: 0.8  // Flag if win rate > 80%
 };
 
 function clampInt(n, min, max) {
@@ -158,7 +175,8 @@ export default {
         collection: rawCollection,
         maxBet: rawMaxBet,
         maxMultiplier: rawMaxMultiplier,
-        roundsPlayed: rawRounds
+        roundsPlayed: rawRounds,
+        sessionTime: rawSessionTime = 0  // New: track how long the session took
       } = await request.json();
       
       const name = String(rawName).trim().slice(0, 20) || 'Player';
@@ -173,11 +191,39 @@ export default {
       const maxBet = clampInt(rawMaxBet, 1, limits.MAX_BET);
       const maxMultiplier = clampInt(rawMaxMultiplier, 1, limits.MAX_MULTIPLIER);
       const roundsPlayed = clampInt(rawRounds, 1, limits.MAX_ROUNDS);
+      const sessionTime = Math.max(0, Number(rawSessionTime || 0));
+      
+      // Calculate maximum possible score
       const maxPossibleScore = maxBet * maxMultiplier * roundsPlayed;
       const score = Math.min(MAX_SCORE, Math.floor(clientScore));
 
+      // Validation 1: Score vs maximum possible
       if (score > maxPossibleScore) {
         return jsonResponse(422, { error: 'Score exceeds maximum possible' }, {}, allowedOrigin);
+      }
+
+      // Validation 2: Minimum session time (detect instant completion)
+      const minSessionTime = roundsPlayed * limits.MIN_TIME_PER_ROUND;
+      if (sessionTime < minSessionTime) {
+        console.warn(`Suspicious: Session too fast. Time: ${sessionTime}ms, Min: ${minSessionTime}ms`);
+        return jsonResponse(422, { error: 'Session completed too quickly' }, {}, allowedOrigin);
+      }
+
+      // Validation 3: Score rate check (per minute)
+      if (sessionTime > 0) {
+        const scorePerMinute = (score / sessionTime) * 60000;
+        if (scorePerMinute > SESSION_TRACKING.MAX_SCORE_PER_MINUTE) {
+          console.warn(`Suspicious: Score rate too high. ${scorePerMinute}/min`);
+          return jsonResponse(422, { error: 'Score rate exceeds limits' }, {}, allowedOrigin);
+        }
+      }
+
+      // Validation 4: Win rate check (if score is too close to theoretical max)
+      const theoreticalMax = maxPossibleScore;
+      const winRate = theoreticalMax > 0 ? score / theoreticalMax : 0;
+      if (winRate > SESSION_TRACKING.SUSPICIOUS_WIN_RATE) {
+        console.warn(`Suspicious: Win rate too high. ${(winRate * 100).toFixed(1)}%`);
+        // Still allow but flag it
       }
 
       try {

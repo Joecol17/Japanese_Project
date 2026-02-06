@@ -349,11 +349,33 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // Game state
+    // Game state with anti-cheat protection
     let credits = 1000;
-    let totalScore = 0;
     let ballsDropped = 0;
     let bestWin = 0;
+    let sessionStartTime = Date.now();
+    
+    // Protected score system
+    let _totalScore = 0;
+    let _scoreHistory = []; // Track all score changes
+    Object.defineProperty(window, 'totalScore', {
+      get: function() { return _totalScore; },
+      set: function(val) {
+        console.warn('Direct score modification detected and blocked!');
+        return false;
+      },
+      configurable: false
+    });
+    
+    function addScore(points) {
+      _totalScore += points;
+      _scoreHistory.push({ points, time: Date.now(), balls: ballsDropped });
+      return _totalScore;
+    }
+    
+    function getScore() {
+      return _totalScore;
+    }
 
     // DOM elements
     const board = document.getElementById('pachinkoBoard');
@@ -482,7 +504,7 @@
           clearInterval(interval);
           const winnings = calculateWinnings(x);
           credits += winnings;
-          totalScore += winnings;
+          addScore(winnings);
           if (winnings > bestWin) bestWin = winnings;
           
           if (winnings > 0) {
@@ -520,7 +542,7 @@
 
     function updateUI() {
       creditsEl.textContent = credits;
-      totalScoreEl.textContent = totalScore;
+      totalScoreEl.textContent = getScore();
       ballsDroppedEl.textContent = ballsDropped;
       bestWinEl.textContent = bestWin;
       saveStats();
@@ -532,7 +554,7 @@
         if (saved) {
           const stats = JSON.parse(saved);
           credits = stats.credits || 1000;
-          totalScore = stats.totalScore || 0;
+          _totalScore = stats.totalScore || 0;
           ballsDropped = stats.ballsDropped || 0;
           bestWin = stats.bestWin || 0;
         }
@@ -545,7 +567,7 @@
       try {
         localStorage.setItem('pachinko_stats', JSON.stringify({
           credits,
-          totalScore,
+          totalScore: getScore(),
           ballsDropped,
           bestWin
         }));
@@ -606,7 +628,7 @@
         return;
       }
 
-      const score = totalScore;
+      const score = getScore();
       if (score <= 0) {
         alert('Play some games first!');
         return;
@@ -622,38 +644,48 @@
             collection: 'pachinko_scores',
             maxBet: 100,
             maxMultiplier: 10,
-            roundsPlayed: ballsDropped
+            roundsPlayed: ballsDropped,
+            sessionTime: Date.now() - sessionStartTime  // Anti-cheat: track session duration
           })
         });
 
         const result = await response.json();
         if (response.ok) {
-          alert('Score saved successfully!');
+          console.log('Score saved successfully:', result);
+          showPopup(`✅ Score saved! Check the leaderboard below.`, 'success');
+          playerNameInput.value = '';
         } else {
-          alert(`Error: ${result.error || 'Failed to save score'}`);
+          console.error('Error:', result.error || 'Failed to save score');
+          showPopup(`❌ ${result.error || 'Failed to save score'}`, 'error');
         }
       } catch (error) {
         console.error('Save error:', error);
-        alert('Failed to save score. Please try again.');
+        showPopup('❌ Failed to save score. Please try again.', 'error');
       }
     });
 
     // Load leaderboard
     function loadLeaderboard() {
+      console.log('Loading pachinko leaderboard...');
       const q = query(collection(db, 'pachinko_scores'), orderBy('score', 'desc'), limit(5));
       onSnapshot(q, (snap) => {
+        console.log(`Leaderboard updated: ${snap.size} scores found`);
         leaderboardEl.innerHTML = '';
         if (snap.empty) {
-          leaderboardEl.innerHTML = '<li>No scores yet.</li>';
+          leaderboardEl.innerHTML = '<li>No scores yet. Be the first!</li>';
           return;
         }
         
         snap.forEach((doc, index) => {
           const data = doc.data();
           const li = document.createElement('li');
-          li.innerHTML = `<span>${index + 1}. ${escapeHtml(data.name)}</span><span>${escapeHtml(String(data.score))}</span>`;
+          const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+          li.innerHTML = `<span>${medal} ${index + 1}. ${escapeHtml(data.name)}</span><span>${escapeHtml(String(data.score))}</span>`;
           leaderboardEl.appendChild(li);
         });
+      }, (error) => {
+        console.error('Leaderboard error:', error);
+        leaderboardEl.innerHTML = '<li>Error loading leaderboard. Check console.</li>';
       });
     }
 
@@ -667,7 +699,7 @@
     }
 
     // Expose for external access
-    window.getPachinkoScore = () => totalScore;
+    window.getPachinkoScore = () => getScore();
     window.getPachinkoBallsDropped = () => Math.max(1, ballsDropped);
 
     // Initialize on load

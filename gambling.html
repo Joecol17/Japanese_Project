@@ -131,7 +131,8 @@
     
       items.forEach((d,i)=>{
         const li = document.createElement('li');
-        li.innerHTML = `<span class="gl-rank">${i + 1}.</span> ${escapeHtml(d.name)} <span class="gl-score">${escapeHtml(String(d.score))}</span>`;
+        const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
+        li.innerHTML = `<span class="gl-rank">${medal}${i + 1}.</span> ${escapeHtml(d.name)} <span class="gl-score">${escapeHtml(String(d.score))}</span>`;
         pachinkoList.appendChild(li);
       });
       
