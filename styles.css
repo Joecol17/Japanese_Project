@@ -61,10 +61,21 @@ header {
 
 /* Gambling dropdown menu in the header */
 .navdropdown{position:relative;display:inline-block}
-.dropdown-menu{position:absolute;top:100%;right:0;background:var(--white);padding:8px;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.12);display:none;min-width:180px;z-index:1100}
-.navdropdown:focus-within .dropdown-menu,.navdropdown:hover .dropdown-menu{display:block}
+.dropdown-menu{position:absolute;top:100%;right:0;background:var(--white);padding:8px;border-radius:10px;box-shadow:0 14px 34px rgba(0,0,0,0.18);min-width:180px;z-index:1100;
+  /* animated open/close: fade + slide + slight scale from the top-right corner */
+  opacity:0;visibility:hidden;pointer-events:none;transform:translateY(-8px) scale(.96);transform-origin:top right;
+  transition:opacity .22s ease,transform .28s cubic-bezier(.2,.9,.3,1.2),visibility 0s linear .28s}
+.dropdown-menu::before{content:'';position:absolute;top:-6px;right:22px;width:12px;height:12px;background:var(--white);transform:rotate(45deg);border-radius:2px}
+.navdropdown:focus-within .dropdown-menu,.navdropdown:hover .dropdown-menu,.navdropdown.open .dropdown-menu{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition-delay:0s}
+.dropdown-item{opacity:0;transform:translateX(10px);transition:opacity .25s ease,transform .25s ease,background .2s ease,color .2s ease,padding-left .2s ease}
+.navdropdown:focus-within .dropdown-item,.navdropdown:hover .dropdown-item,.navdropdown.open .dropdown-item{opacity:1;transform:none}
+.navdropdown:hover .dropdown-item:nth-child(1),.navdropdown:focus-within .dropdown-item:nth-child(1),.navdropdown.open .dropdown-item:nth-child(1){transition-delay:.05s}
+.navdropdown:hover .dropdown-item:nth-child(2),.navdropdown:focus-within .dropdown-item:nth-child(2),.navdropdown.open .dropdown-item:nth-child(2){transition-delay:.1s}
+.navdropdown:hover .dropdown-item:nth-child(3),.navdropdown:focus-within .dropdown-item:nth-child(3),.navdropdown.open .dropdown-item:nth-child(3){transition-delay:.15s}
+.dropdown-item:hover{padding-left:18px}
+.navdropdown .caret{display:inline-block;transition:transform .28s ease}
+.navdropdown:hover .caret,.navdropdown:focus-within .caret,.navdropdown.open .caret{transform:rotate(180deg)}
 .dropdown-item{display:block;color:var(--dark-gray);text-decoration:none;padding:8px 12px;border-radius:6px;margin:6px 0;font-weight:700}
-.dropdown-item:hover{background:rgba(188,0,45,0.06);color:var(--primary-red)}
 
 /* Gambling page layout: three game cards */
 .games-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
@@ -391,4 +402,46 @@ li{
     color: var(--dark-gray);
     margin-bottom: 15px;
     font-size: 16px;
+}
+
+/* ---------- Motion: scroll animations ---------- */
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+
+/* Reading-progress bar under the sticky header */
+.scroll-progress{position:fixed;top:0;left:0;height:3px;width:100%;transform-origin:0 50%;transform:scaleX(0);background:linear-gradient(90deg,var(--accent-gold),var(--white));z-index:1200;pointer-events:none}
+
+/* Header condenses once the page is scrolled */
+header{transition:box-shadow .3s ease}
+.navcontainer{transition:height .3s ease}
+header.scrolled{box-shadow:0 6px 18px rgba(0,0,0,0.28)}
+header.scrolled .navcontainer{height:52px}
+
+/* Reveal on scroll. Only hidden when JS has opted in, so no-JS visitors see everything. */
+.js-reveal .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1);transition-delay:var(--reveal-delay,0s);will-change:opacity,transform}
+.js-reveal .reveal.reveal-left{transform:translateX(-32px)}
+.js-reveal .reveal.reveal-right{transform:translateX(32px)}
+.js-reveal .reveal.in-view{opacity:1;transform:none}
+
+/* Hero image gentle float */
+.hero .hero-image img{animation:floaty 6s ease-in-out infinite}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+
+/* Card hover lift */
+.card,.game-card{transition:transform .3s ease,box-shadow .3s ease}
+.card:hover,.game-card:hover{transform:translateY(-6px);box-shadow:0 14px 32px rgba(0,0,0,0.12)}
+
+/* Table-of-contents scrollspy highlight */
+.toc a{display:block;padding:2px 0 2px 10px;border-left:3px solid transparent;transition:color .2s ease,border-color .2s ease,padding-left .2s ease}
+.toc a.active{color:var(--primary-red);border-left-color:var(--primary-red);padding-left:14px}
+
+/* Back-to-top button */
+.to-top{position:fixed;right:18px;bottom:18px;width:44px;height:44px;padding:0;border-radius:50%;font-size:20px;line-height:1;opacity:0;transform:translateY(20px);pointer-events:none;transition:opacity .3s ease,transform .3s ease;z-index:1100}
+.to-top.show{opacity:1;transform:none;pointer-events:auto}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .js-reveal .reveal{opacity:1;transform:none;transition:none}
+  .hero .hero-image img{animation:none}
+  .dropdown-menu,.dropdown-item,.navdropdown .caret,.to-top{transition:none}
+  .card:hover,.game-card:hover{transform:none}
 }
